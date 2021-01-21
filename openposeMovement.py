@@ -57,7 +57,9 @@ class Point():
             self.draw = True
         else:
             self.draw = False
-   
+
+
+
 class Pose:
     def __init__(self,keypoints):
         self.rightShoulder = Point(keypoints[2])
@@ -67,8 +69,46 @@ class Pose:
         self.leftElbow = Point(keypoints[6])
         self.leftWrist = Point(keypoints[7])
         self.center = Point(keypoints[0])
+
+# Calc arm size between shoulder-elbow and elbow-wrist
+    def rightArmSize(self):
+        point1 = self.rightShoulder.npPoint
+        point2 = self.rightElbow.npPoint
+        size = np.lianlg.norm(point1 - point2)
+        return size
+         
+    def rightForearmSize(self):
+        point1 = self.rightElbow.npPoint
+        point2 = self.rightWrist.npPoint
+        size = np.lianlg.norm(point1 - point2)
+        return size
+     
+    def leftArmSize(self):
+        point1 = self.leftShoulder.npPoint
+        point2 = self.leftElbow.npPoint
+        size = np.lianlg.norm(point1 - point2)
+        return size
+         
+    def leftForearmSize(self):
+        point1 = self.leftElbow.npPoint
+        point2 = self.leftWrist.npPoint
+        size = np.lianlg.norm(point1 - point2)
+        return size
+
+# Distance between reference frame and both shoulders.
+    def distRefFrameArms(self):
+        point1 = self.center.npPoint
+        point2 = self.rightShoulder.npPoint
+        point3 = self.leftShoulder.npPoint
+
+        dist1 = np.lianlg.norm(point1-point2)
+        dist2 = np.lianlg.norm(point1-point3)
+        dist = (dist1+dist2)/2
+        return dist
     
 # Convert points to reference frame placed in middle hip
+# P = point, O = ref frame, -> NewPoint in O = [(P-O)*(1,-1)].flip
+# Now axis are in the same direction that Gazebo's axis
 def convertToRefFrame(ref, point):
     changeValue = np.float32([1, -1])
     center = ref.npPoint
@@ -76,8 +116,6 @@ def convertToRefFrame(ref, point):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     return newPoint
-    
-
     
 def setParams():
     args = parser.parse_args()
@@ -93,21 +131,36 @@ def setParams():
 
 def setReferenceFrame(data):
     peopleNum = len(data.poseKeypoints)
-    for i in range(peopleNum):
-        # center = Point(data.poseKeypoints[i][0])
-        pose = Pose(data.poseKeypoints[i])
-        print("Center: "+str(pose.center.npPoint))
-        print("RightShoulder: "+str(pose.rightShoulder.npPoint))
-        print("Right Shoulder fixed: "+str(convertToRefFrame(pose.center, pose.rightShoulder)))
 
-        # print("x: "+str(center.x)+" y: "+str(center.y))
-        # print("Array: "+str(center.npPoint))
-    try:
-        print("First dimension : ")
-        print(data.poseKeypoints[1][1])
-        print("done")
-    except:
-        pass
+    # Detectmore than one person
+    # for i in range(peopleNum):
+        # pose = Pose(data.poseKeypoints[i])
+
+    # Just one person at a time
+    if peopleNum > 0:
+        pose = Pose(data.poseKeypoints[0])
+
+def convertToRobotValues(pose):
+    height = pose.distRefFrameArms()
+    rArm = pose.rightArmSize()
+    rForearm = pose.rightForearmSize()
+    lArm = pose.leftArmSize()
+    lForearm = pose.leftForearmSize()
+
+    robotHeight = 3.4
+    robotRArm = 1.2
+    robotRForearm = 1.2
+    robotLArm = 1.2
+    robotLForearm = 1.2
+
+    rightShoulder = convertToRefFrame(pose.center, pose.rightShoulder)
+    rightElbow = convertToRefFrame(pose.center, pose.rightElbow)
+    rightWrist = convertToRefFrame(pose.center, pose.rightWrist)
+    leftShoulder = convertToRefFrame(pose.center, pose.leftShoulder)
+    leftElbow = convertToRefFrame(pose.center, pose.leftElbow)
+    leftWrist = convertToRefFrame(pose.center, pose.leftWrist)
+
+
 
 
 
