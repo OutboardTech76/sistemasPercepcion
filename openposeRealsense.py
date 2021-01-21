@@ -108,9 +108,7 @@ def setReferenceFrame(data):
         if peopleNum > 0:
             pose = Pose(data.poseKeypoints[0])
             pt = convertToRefFrame(pose.center, pose.rightShoulder)
-            print("Rshoulder value: "+str(pose.rightShoulder.npPoint))
-            print("Ref frame: " +str(pose.center.npPoint))
-            print("Point from ref frame: " +str(pt))
+            return pose
     except:
         pass
 
@@ -150,11 +148,14 @@ if __name__ == '__main__':
     config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
     config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
+    align = rs.align(rs.stream.color)
+
     pipeline.start(config)
      
     try:
         while True:
             frames = pipeline.wait_for_frames()
+            frames = align.process(frames)
             depth_frame = frames.get_depth_frame()
             color_frame = frames.get_color_frame()
              
@@ -171,19 +172,25 @@ if __name__ == '__main__':
             # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
             depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
 
-            # Stack both images horizontally
-            images = np.hstack((color_image, depth_colormap))
 
-            # Show images
-            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('RealSense', images)
              
             datum.cvInputData = color_image
             opWrapper.emplaceAndPop(op.VectorDatum([datum]))
-            setReferenceFrame(datum)
+            pose = setReferenceFrame(datum)
+
+            dist1 = depth_frame.get_distance(pose.rightShoulder.x, pose.rightShoulder.y)
+            dist2 = depth_frame.get_distance(pose.rightElbow.x, pose.rightElbow.y)
+            dist = dist1 - dist2
+            print(dist)
+
 
             output = datum.cvOutputData
-            cv2.imshow('output', output)
+             
+            # Stack both images horizontally
+            images = np.hstack((output, depth_colormap))
+            # Show images
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
              
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 # toc = time.time()
