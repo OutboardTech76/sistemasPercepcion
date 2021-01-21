@@ -68,7 +68,7 @@ class Pose:
         self.leftShoulder = Point(keypoints[5])
         self.leftElbow = Point(keypoints[6])
         self.leftWrist = Point(keypoints[7])
-        self.center = Point(keypoints[0])
+        self.center = Point(keypoints[8])
 
 # Calc arm size between shoulder-elbow and elbow-wrist
     def rightArmSize(self):
@@ -139,6 +139,10 @@ def setReferenceFrame(data):
     # Just one person at a time
     if peopleNum > 0:
         pose = Pose(data.poseKeypoints[0])
+        pt = convertToRefFrame(pose.center, pose.rightShoulder)
+        print("Rshoulder value: "+str(pose.rightShoulder.npPoint))
+        print("Ref frame: " +str(pose.center.npPoint))
+        print("Point from ref frame: " +str(pt))
 
 def convertToRobotValues(pose):
     height = pose.distRefFrameArms()
@@ -159,10 +163,6 @@ def convertToRobotValues(pose):
     leftShoulder = convertToRefFrame(pose.center, pose.leftShoulder)
     leftElbow = convertToRefFrame(pose.center, pose.leftElbow)
     leftWrist = convertToRefFrame(pose.center, pose.leftWrist)
-
-
-
-
 
 if __name__ == '__main__':
 
