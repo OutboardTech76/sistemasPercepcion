@@ -96,6 +96,8 @@ class Pose:
 def convertToRefFrame(hand, pose, depth_frame):
     changeValue = np.float32([1, -1])
     center = pose.center.npPoint
+    centerDist = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
+    pose.center.npPoint = np.append(center, centerDist)
 
     # Convert pose position to ref frame
     point = pose.rightShoulder
@@ -103,6 +105,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.rightShoulder.npPoint = np.append(newPoint,dist)
      
     point = pose.rightElbow
@@ -110,6 +113,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.rightElbow.npPoint = np.append(newPoint, dist)
      
     point = pose.rightWrist
@@ -117,6 +121,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.rightWrist.npPoint = np.append(newPoint, dist)
      
       
@@ -125,6 +130,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.leftShoulder.npPoint = np.append(newPoint, dist)
      
     point = pose.leftElbow
@@ -132,6 +138,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.leftElbow.npPoint = np.append(newPoint, dist)
      
     point = pose.leftWrist
@@ -139,10 +146,9 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     pose.leftWrist.npPoint = np.append(newPoint, dist)
 
-    dist = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
-    pose.center.npPoint = np.append(center, dist)
     
     # Convert hand keypoints to ref frame
      
@@ -151,6 +157,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     hand.rightBase.npPoint = np.append(newPoint, dist)
      
     point = hand.rightMiddle
@@ -158,6 +165,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     hand.rightMiddle.npPoint = np.append(newPoint, dist)
      
     point = hand.leftBase
@@ -165,6 +173,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     hand.leftBase.npPoint = np.append(newPoint, dist)
      
     point = hand.leftMiddle
@@ -172,6 +181,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
+    dist -= centerDist
     hand.leftMiddle.npPoint = np.append(newPoint, dist)
      
 
@@ -203,7 +213,7 @@ def setReferenceFrame(data, depth_frame):
             pose = Pose(data.poseKeypoints[0])
             hand = Hand(data.handKeypoints)
              
-            poseChanged, handChanged= convertToRefFrame(hand, pose, depth_frame)
+            poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
             
             return poseChanged, handChanged
     except:
@@ -274,10 +284,13 @@ if __name__ == '__main__':
              
             datum.cvInputData = color_image
             opWrapper.emplaceAndPop(op.VectorDatum([datum]))
-            pose, hand= setReferenceFrame(datum, depth_frame)
+            pose, hand = setReferenceFrame(datum, depth_frame)
             if pose is not None:
-                print("Hand right base: {}".format(hand.rightBase.npPoint))
-                print("Hand right middle: {}".format(hand.rightMiddle.npPoint))
+                print("Cam dist: {}".format(pose.center.npPoint))
+                print("R shoulder: {}".format(pose.rightShoulder.npPoint))
+                # print("Hand right base: {}".format(hand.rightBase.npPoint))
+                # print("Hand right middle: {}".format(hand.rightMiddle.npPoint))
+                # print("Dist between finger: {}".format(hand.rightBase.npPoint - hand.rightMiddle.npPoint))
 
 
 
