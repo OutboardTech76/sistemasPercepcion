@@ -18,14 +18,13 @@ class Point():
         self.npPoint = pt[0:2]
         self.x = pt[0]
         self.y = pt[1]
+        self.z = 0
         self.score = pt[2]
         self.point = (pt[0], pt[1])
         if self.point > (0,0):
             self.draw = True
         else:
             self.draw = False
-
-
 
 class Pose:
     def __init__(self,keypoints):
@@ -76,13 +75,70 @@ class Pose:
 # Convert points to reference frame placed in middle hip
 # P = point, O = ref frame, -> NewPoint in O = [(P-O)*(1,-1)].flip
 # Now axis are in the same direction that Gazebo's axis
-def convertToRefFrame(ref, point):
+def convertToRefFrameOld(ref, point):
     changeValue = np.float32([1, -1])
     center = ref.npPoint
     newPoint = point.npPoint - center
     newPoint = newPoint*changeValue
     newPoint = np.flip(newPoint,0)
     return newPoint
+ 
+def convertToRefFrame(pose, depth_frame):
+    changeValue = np.float32([1, -1])
+    center = pose.center.npPoint
+    point = pose.rightShoulder
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.rightShoulder.npPoint = np.append(newPoint,dist)
+     
+    point = pose.rightElbow
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    pose.rightElbow.npPoint = newPoint
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.rightElbow.npPoint = np.append(newPoint, dist)
+     
+    point = pose.rightWrist
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    pose.rightWrist.npPoint = newPoint
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.rightWrist.npPoint = np.append(newPoint, dist)
+     
+      
+    point = pose.leftShoulder
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    pose.leftShoulder.npPoint = newPoint
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.leftShoulder.npPoint = np.append(newPoint, dist)
+     
+    point = pose.leftElbow
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    pose.leftElbow.npPoint = newPoint
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.leftElbow.npPoint = np.append(newPoint, dist)
+     
+    point = pose.leftWrist
+    newPoint = point.npPoint - center
+    newPoint = newPoint*changeValue
+    newPoint = np.flip(newPoint,0)
+    pose.leftWrist.npPoint = newPoint
+    dist = depth_frame.get_distance(int(point.x), int(point.y))
+    pose.leftWrist.npPoint = np.append(newPoint, dist)
+
+    dist = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
+    pose.center.npPoint = np.append(center, dist)
+    
+     
+    return pose
     
 def setParams():
     # args = parser.parse_args()
@@ -96,7 +152,7 @@ def setParams():
     # params["write_json"] = args.jsonPath 
     return params
 
-def setReferenceFrame(data):
+def setReferenceFrame(data, depth_frame):
     try:
         peopleNum = len(data.poseKeypoints)
 
@@ -107,8 +163,10 @@ def setReferenceFrame(data):
         # Just one person at a time
         if peopleNum > 0:
             pose = Pose(data.poseKeypoints[0])
-            pt = convertToRefFrame(pose.center, pose.rightShoulder)
-            return pose
+             
+            poseChanged = convertToRefFrame(pose, depth_frame)
+             
+            return poseChanged
     except:
         pass
 
@@ -132,7 +190,6 @@ def convertToRobotValues(pose):
     leftElbow = convertToRefFrame(pose.center, pose.leftElbow)
     leftWrist = convertToRefFrame(pose.center, pose.leftWrist)
 
-
 if __name__ == '__main__':
 
     # rospy.init_node("senderOpenpose")
@@ -152,10 +209,12 @@ if __name__ == '__main__':
 
     pipeline.start(config)
      
+    print("Camara arrancada")
     try:
         while True:
             frames = pipeline.wait_for_frames()
             frames = align.process(frames)
+
             depth_frame = frames.get_depth_frame()
             color_frame = frames.get_color_frame()
              
@@ -176,12 +235,11 @@ if __name__ == '__main__':
              
             datum.cvInputData = color_image
             opWrapper.emplaceAndPop(op.VectorDatum([datum]))
-            pose = setReferenceFrame(datum)
+            pose = setReferenceFrame(datum, depth_frame)
+            print(pose)
+            if pose is not None:
+                print("RIght wirst: "+str(pose.rightWrist.npPoint))
 
-            dist1 = depth_frame.get_distance(pose.rightShoulder.x, pose.rightShoulder.y)
-            dist2 = depth_frame.get_distance(pose.rightElbow.x, pose.rightElbow.y)
-            dist = dist1 - dist2
-            print(dist)
 
 
             output = datum.cvOutputData
