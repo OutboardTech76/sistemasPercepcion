@@ -10,6 +10,24 @@ import numpy as np
 from openpose import pyopenpose as op
  
   
+# Classes used to define hands and fingers
+# handKeypoint[0] -> left hand
+# handKeypoint[1] -> right hand
+class Hand:
+    def __init__(self, keypoints):
+        # Second dimension limits num person
+        right = keypoints[0][0]
+        left = keypoints[1][0]
+         
+        self.rightBase = Point(right[0])
+        self.leftBase = Point(left[0])
+        self.rightMiddle = Point(right[12])
+        self.leftMiddle = Point(left[12])
+
+
+     
+ 
+  
 # Point class with x,y,z values and point as a tuple (x,y)
 class Point():
     def __init__(self,pt):
@@ -75,14 +93,6 @@ class Pose:
 # Convert points to reference frame placed in middle hip
 # P = point, O = ref frame, -> NewPoint in O = [(P-O)*(1,-1)].flip
 # Now axis are in the same direction that Gazebo's axis
-def convertToRefFrameOld(ref, point):
-    changeValue = np.float32([1, -1])
-    center = ref.npPoint
-    newPoint = point.npPoint - center
-    newPoint = newPoint*changeValue
-    newPoint = np.flip(newPoint,0)
-    return newPoint
- 
 def convertToRefFrame(pose, depth_frame):
     changeValue = np.float32([1, -1])
     center = pose.center.npPoint
@@ -163,8 +173,11 @@ def setReferenceFrame(data, depth_frame):
         # Just one person at a time
         if peopleNum > 0:
             pose = Pose(data.poseKeypoints[0])
-             
             poseChanged = convertToRefFrame(pose, depth_frame)
+
+            hand = Hand(data.handKeypoints)
+            print("Right base: {}".format(hand.rightBase.npPoint))
+            print("Right middle: {}".format(hand.rightMiddle.npPoint))
              
             return poseChanged
     except:
@@ -236,9 +249,8 @@ if __name__ == '__main__':
             datum.cvInputData = color_image
             opWrapper.emplaceAndPop(op.VectorDatum([datum]))
             pose = setReferenceFrame(datum, depth_frame)
-            print(pose)
-            if pose is not None:
-                print("RIght wirst: "+str(pose.rightWrist.npPoint))
+            # if pose is not None:
+                # print("Hand keypoints: {}".format(datum.handKeypoints[0]))
 
 
 
