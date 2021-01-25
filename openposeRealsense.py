@@ -106,6 +106,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.rightShoulder.npPoint = np.append(newPoint,dist)
      
     point = pose.rightElbow
@@ -114,6 +115,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.rightElbow.npPoint = np.append(newPoint, dist)
      
     point = pose.rightWrist
@@ -122,6 +124,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.rightWrist.npPoint = np.append(newPoint, dist)
      
       
@@ -131,6 +134,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.leftShoulder.npPoint = np.append(newPoint, dist)
      
     point = pose.leftElbow
@@ -139,6 +143,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.leftElbow.npPoint = np.append(newPoint, dist)
      
     point = pose.leftWrist
@@ -147,6 +152,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     pose.leftWrist.npPoint = np.append(newPoint, dist)
 
     
@@ -158,6 +164,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     hand.rightBase.npPoint = np.append(newPoint, dist)
      
     point = hand.rightMiddle
@@ -166,6 +173,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     hand.rightMiddle.npPoint = np.append(newPoint, dist)
      
     point = hand.leftBase
@@ -174,6 +182,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     hand.leftBase.npPoint = np.append(newPoint, dist)
      
     point = hand.leftMiddle
@@ -182,6 +191,7 @@ def convertToRefFrame(hand, pose, depth_frame):
     newPoint = np.flip(newPoint,0)
     dist = depth_frame.get_distance(int(point.x), int(point.y))
     dist -= centerDist
+    dist *= -1
     hand.leftMiddle.npPoint = np.append(newPoint, dist)
      
 
@@ -287,7 +297,7 @@ if __name__ == '__main__':
             pose, hand = setReferenceFrame(datum, depth_frame)
             if pose is not None:
                 print("Cam dist: {}".format(pose.center.npPoint))
-                print("R shoulder: {}".format(pose.rightShoulder.npPoint))
+                print("R wrist: {}".format(pose.rightWrist.npPoint))
                 # print("Hand right base: {}".format(hand.rightBase.npPoint))
                 # print("Hand right middle: {}".format(hand.rightMiddle.npPoint))
                 # print("Dist between finger: {}".format(hand.rightBase.npPoint - hand.rightMiddle.npPoint))
