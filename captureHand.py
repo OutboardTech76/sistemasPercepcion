@@ -106,9 +106,15 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
 
-def removeBackground(depth, pose, img):
+def removeBackground(depth, pose, img) -> np.ndarray:
     centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
+    armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
+     
     maxValueDist = centerDist + 0.3
+    # maxValueDist2 = centerDist + (abs(centerDist - armDist))
+    # maxValueDist = max(maxValueDist1, maxValueDist2)
+    minValueDist = centerDist - 0.2
+     
     h, w = img.shape
     imgData = np.asarray(img, dtype='uint8')
     auxImg = np.copy(imgData)
@@ -118,6 +124,8 @@ def removeBackground(depth, pose, img):
             if dist >= maxValueDist:
                 auxImg[y, x] = 0
             elif dist == 0:
+                auxImg[y, x] = 0
+            elif dist < minValueDist:
                 auxImg[y, x] = 0
             # else:
                 # auxImg[y, x] = 0
@@ -277,9 +285,9 @@ if __name__ == '__main__':
                 mask = removeBackground(depth_frame, pose, img)
                  
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                # cv2.imshow("mask", imgWoutBg)
+                cv2.imshow("mask", imgWoutBg)
                 # kMeans(imgWoutBg)
-                moments(imgWoutBg)
+                # moments(imgWoutBg)
 
                 # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
                 # endX = int(hand.rightBase.x +20)
