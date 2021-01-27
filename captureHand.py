@@ -106,7 +106,7 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
 
-def removeBackground(depth, pose, img) -> np.ndarray:
+def removeBackground(depth, pose, img, colorImg) -> np.ndarray:
     centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
     armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
      
@@ -114,6 +114,8 @@ def removeBackground(depth, pose, img) -> np.ndarray:
     # maxValueDist2 = centerDist + (abs(centerDist - armDist))
     # maxValueDist = max(maxValueDist1, maxValueDist2)
     minValueDist = centerDist - 0.2
+
+    kernel = np.ones((3,3), np.uint8)
      
     h, w = img.shape
     imgData = np.asarray(img, dtype='uint8')
@@ -131,11 +133,44 @@ def removeBackground(depth, pose, img) -> np.ndarray:
                 # auxImg[y, x] = 0
 
     # Use gaussian for noise reduction
-    # Threshold may not be necesary
-    # cv2.threshold(auxImg, 100, 255, cv2.THRESH_BINARY, auxImg)
     auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
-    auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
-    auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
+    # Apply threshold using Otsu algorith
+    _, auxImg = cv2.threshold(auxImg,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    # Open image to reduce noise. After dilate to extract sure background 
+    openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
+    sureBg = cv2.dilate(openImg,kernel,iterations=3)
+    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
+    distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
+    _, sureFg = cv2.threshold(distTransform, 0.10*distTransform.max(), 255, 0)
+     
+    # Finding unknown region. Difference between sureBg and sureFg
+    sureFg = np.uint8(sureFg)
+    unknownRegion = cv2.subtract(sureBg, sureFg)
+     
+    # Marker labelling
+    _, markers = cv2.connectedComponents(sureFg)
+    # Add one to all labels so that sure background is not 0, but 1
+    markers = markers+1
+    # Now, mark the region of unknown with zero
+    markers[unknownRegion==255] = 0
+     
+    # Apply watershed algorith to extract siluette in image
+    
+    markers = cv2.watershed(colorImg, markers) 
+    colorImg[markers == -1] = [255,0,0]
+    
+    markImg = np.zeros(auxImg.shape, dtype='uint8')
+    markImg[markers == -1] = 255
+     
+    img2 = cv2.bitwise_and(markImg, auxImg)
+    
+    auxImg = cv2.bitwise_not(auxImg)
+    
+    cv2.imshow("fg", markImg)
+    cv2.imshow("2", auxImg)
+      
+    # auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
+    # auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
 
     return auxImg
  
@@ -282,10 +317,11 @@ if __name__ == '__main__':
                 # xAxis = pose.rightShoulder.x
                 # height, width, _ = output.shape
                 # cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
-                mask = removeBackground(depth_frame, pose, img)
+                mask = removeBackground(depth_frame, pose, img, color_image)
                  
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                cv2.imshow("mask", imgWoutBg)
+                 
+                # cv2.imshow("mask", mask)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
 
