@@ -24,6 +24,15 @@ class Point():
         else:
             self.draw = False
 
+class Pose:
+    def __init__(self,keypoints):
+        self.rightShoulder = Point(keypoints[2])
+        self.rightElbow = Point(keypoints[3])
+        self.rightWrist = Point(keypoints[4])
+        self.leftShoulder = Point(keypoints[5])
+        self.leftElbow = Point(keypoints[6])
+        self.leftWrist = Point(keypoints[7])
+        self.center = Point(keypoints[8])
  
 # Classes used to define hands and fingers
 # handKeypoint[0] -> right hand
@@ -70,12 +79,12 @@ def setReferenceFrame(data):
 
         # Just one person at a time
         if peopleNum > 0:
-            # pose = Pose(data.poseKeypoints[0])
+            pose = Pose(data.poseKeypoints[0])
             hand = Hand(data.handKeypoints)
              
             # poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
             
-            return hand
+            return pose, hand
     except:
         pass
     
@@ -176,11 +185,25 @@ if __name__ == '__main__':
             datum.cvInputData = color_image
             opWrapper.emplaceAndPop(op.VectorDatum([datum]))
             
-            hand = setReferenceFrame(datum)
-            if hand is not None:
-                print("Max dist: {}".format(hand.largerMeasure()))
-
+            pose, hand = setReferenceFrame(datum)
+             
             output = datum.cvOutputData
+            try:
+                xAxis = pose.rightShoulder.x
+                height, width, _ = output.shape
+                cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
+
+                # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
+                # endX = int(hand.rightBase.x +20)
+                # endY = int(hand.rightBase.y +20)
+                # initX = int(hand.rightBase.x - hand.largerMeasure())
+                # initY = int(hand.rightBase.y - hand.largerMeasure())
+                # cv2.rectangle(output, (200, 200),(100, 500), (0, 255, 0),3)
+                # cv2.rectangle(output, ((hand.rightBase.x + 20), (hand.rightBase.y -20)),((hand.rightBase.x + hand.largerMeasure()), (hand.rightBase.y + hand.largerMeasure())), (0, 255, 0),3)
+                # cv2.rectangle(output, (initX, initY),(endX, endY), (0, 255, 0),3)
+
+            except:
+                pass
 
              
             # Stack both images horizontally
