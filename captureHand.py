@@ -105,6 +105,29 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.dilate(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4), (3,3)))
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
+
+def removeBackground(depth, pose, img):
+    centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
+    maxValueDist = centerDist + 0.3
+    h, w = img.shape
+    imgData = np.asarray(img, dtype='uint8')
+    auxImg = np.copy(imgData)
+    for y in range(0,h):
+        for x in range(0,w):
+            dist = depth.get_distance(x, y)
+            if dist >= maxValueDist:
+                auxImg[y, x] = 0
+            elif dist == 0:
+                auxImg[y, x] = 0
+            # else:
+                # auxImg[y, x] = 0
+
+    # Use gaussian for noise reduction
+    auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
+    auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
+    auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
+
+    return auxImg
  
   
 
@@ -150,6 +173,8 @@ if __name__ == '__main__':
             depth_image = np.asanyarray(depth_frame.get_data())
             color_image = np.asanyarray(color_frame.get_data())
              
+            img = np.copy(depth_colormap)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY, dstCn = cv2.CV_8UC1)
             # near = np.copy(depth_colormap)
             # near = cv2.cvtColor(near,cv2.COLOR_BGR2GRAY,  dstCn = cv2.CV_8UC1)
             
@@ -189,9 +214,13 @@ if __name__ == '__main__':
              
             output = datum.cvOutputData
             try:
-                xAxis = pose.rightShoulder.x
-                height, width, _ = output.shape
-                cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
+                # xAxis = pose.rightShoulder.x
+                # height, width, _ = output.shape
+                # cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
+                mask = removeBackground(depth_frame, pose, img)
+                 
+                imgMask = cv2.bitwise_and(color_image, color_image, mask=mask)
+                cv2.imshow("mask", imgMask)
 
                 # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
                 # endX = int(hand.rightBase.x +20)
