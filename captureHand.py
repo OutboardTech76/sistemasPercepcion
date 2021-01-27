@@ -131,6 +131,45 @@ def removeBackground(depth, pose, img):
 
     return auxImg
  
+def moments(img):
+    threshold = 100
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY, dstCn = cv2.CV_8UC1)
+    
+    canny_output = cv2.Canny(img, threshold, threshold * 2)
+    print("1")
+    cv2.imshow("1", canny_output)
+    
+    contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    print("2")
+    
+    # Get the moments
+    mu = [None]*len(contours)
+    print("3")
+    for i in range(len(contours)):
+        mu[i] = cv2.moments(contours[i])
+    # Get the mass centers
+    print("4")
+    mc = [None]*len(contours)
+    print("5")
+    for i in range(len(contours)):
+        # add 1e-5 to avoid division by zero
+        mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
+    # Draw contours
+    print("6")
+    
+    drawing = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
+    print("7")
+    
+    for i in range(len(contours)):
+        color = (0, 255, 0)
+        cv2.drawContours(drawing, contours, i, color, 2)
+        cv2.circle(drawing, (int(mc[i][0]), int(mc[i][1])), 4, color, -1)
+    
+    
+    cv2.imshow('Contours', drawing)
+ 
+ 
+ 
 def kMeans(img):
     auxImg = np.copy(img)
     pixelValues = auxImg.reshape((-1, 3))
@@ -238,8 +277,9 @@ if __name__ == '__main__':
                 mask = removeBackground(depth_frame, pose, img)
                  
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                cv2.imshow("mask", imgWoutBg)
+                # cv2.imshow("mask", imgWoutBg)
                 # kMeans(imgWoutBg)
+                moments(imgWoutBg)
 
                 # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
                 # endX = int(hand.rightBase.x +20)
