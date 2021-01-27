@@ -123,12 +123,30 @@ def removeBackground(depth, pose, img):
                 # auxImg[y, x] = 0
 
     # Use gaussian for noise reduction
+    # Threshold may not be necesary
+    # cv2.threshold(auxImg, 100, 255, cv2.THRESH_BINARY, auxImg)
     auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
     auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
     auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
 
     return auxImg
  
+def kMeans(img):
+    auxImg = np.copy(img)
+    pixelValues = auxImg.reshape((-1, 3))
+    pixelValues = np.float32(pixelValues)
+
+    stop = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    nAttemps = 10
+    centroid = cv2.KMEANS_RANDOM_CENTERS
+    clusters = 6
+
+    _, labels, centers = cv2.kmeans(pixelValues, clusters, None, stop, nAttemps, centroid)
+    centers = np.uint8(centers)
+    segmentedData = centers[labels.flatten()]
+
+    segmentedImg = segmentedData.reshape(auxImg.shape)
+    cv2.imshow("K", segmentedImg)
   
 
 
@@ -219,8 +237,9 @@ if __name__ == '__main__':
                 # cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
                 mask = removeBackground(depth_frame, pose, img)
                  
-                imgMask = cv2.bitwise_and(color_image, color_image, mask=mask)
-                cv2.imshow("mask", imgMask)
+                imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
+                cv2.imshow("mask", imgWoutBg)
+                # kMeans(imgWoutBg)
 
                 # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
                 # endX = int(hand.rightBase.x +20)
