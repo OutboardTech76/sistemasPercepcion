@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 import os
+from typing import Tuple
 from openpose import pyopenpose as op
 
 
@@ -69,10 +70,11 @@ class Hand:
 
         return max(dist1, dist2, dist3, dist4, dist5)
      
-def setReferenceFrame(data):
-    try:
+def setReferenceFrame(data) -> Tuple[Pose, Hand]:
+    if data.poseKeypoints is None:
+        return None, None
+    else:
         peopleNum = len(data.poseKeypoints)
-
         # Detectmore than one person
         # for i in range(peopleNum):
             # pose = Pose(data.poseKeypoints[i])
@@ -83,10 +85,7 @@ def setReferenceFrame(data):
             hand = Hand(data.handKeypoints)
              
             # poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
-            
             return pose, hand
-    except:
-        pass
     
 def setParams():
     # args = parser.parse_args()
@@ -161,13 +160,32 @@ def removeBackground(depth, pose, img, colorImg) -> np.ndarray:
     
     markImg = np.zeros(auxImg.shape, dtype='uint8')
     markImg[markers == -1] = 255
+
+    markImgCopy = markImg.copy()
      
-    img2 = cv2.bitwise_and(markImg, auxImg)
+    mask = np.zeros((h+2,w+2), dtype='uint8')
     
-    auxImg = cv2.bitwise_not(auxImg)
+    _, markImgCopy, _, _ = cv2.floodFill(auxImg, mask, (0,0), 255)
+    # markImgCopy = cv2.bitwise_not(markImgCopy)
+    imgOut = markImg | markImgCopy
+    cv2.imshow("Flood", markImgCopy)
+    # cv2.imshow("mark", markImg)
+    # auxImg = cv2.bitwise_not(auxImg)
     
-    cv2.imshow("fg", markImg)
-    cv2.imshow("2", auxImg)
+    # cv2.imshow("fg", markImg)
+    # cv2.imshow("2", auxImg)
+     
+    # filled = np.zeros_like(auxImg)
+    # contours, _ = cv2.findContours(auxImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # contours = contours[0] if len(contours) == 2 else contours[1]
+    # the_contour = contours[0]
+    # print("3")
+    # x,y,w,h = cv2.boundingRect(the_contour)
+    # print("4")
+    # cv2.drawContours(filled, [the_contour], 0, 255, -1)
+    # print("5")
+     
+    # cv2.imshow("2", filled)
       
     # auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
     # auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
