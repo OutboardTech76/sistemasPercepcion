@@ -5,15 +5,22 @@ import argparse
 import json
 import sys
 import os
-from typing import Tuple
+import random 
+from typing import Tuple, Any
+from nptyping import NDArray
 from openpose import pyopenpose as op
 
-# Type aliases 
-Image = Tuple[Tuple[int]]
-ImageBGR = Tuple[Tuple[Tuple[int]]]
+random.seed(123)
 
-# Point class with x,y,z values and point as a tuple (x,y)
+# Type aliases
+Image = NDArray[(Any, Any), int]
+ImageBGR = NDArray[(Any, Any, 3), int]
+
 class Point():
+    """
+    Point class.
+    Creates Point as numpy array (npPoint), with x, y and z (x,y,z) and as a tuple of (x,y) points (point)
+    """
     def __init__(self,pt):
         # Convert to numpy float or there will be error when printing lines
         pt =  np.float32(pt)
@@ -37,7 +44,7 @@ class Pose:
         self.leftElbow = Point(keypoints[6])
         self.leftWrist = Point(keypoints[7])
         self.center = Point(keypoints[8])
- 
+
 # Classes used to define hands and fingers
 # handKeypoint[0] -> right hand
 # handKeypoint[1] -> left hand
@@ -175,7 +182,6 @@ class Hand:
          
         return max(max1, max2, max3)
 
-     
 def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
     if data.poseKeypoints is None:
         return None, None
@@ -210,7 +216,6 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.dilate(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4), (3,3)))
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
-
 
 
 def extractContour(img: Image, colorImg: ImageBGR) -> Image: # img must be a binary image and colorImg 3channel
@@ -285,7 +290,7 @@ def removeBackground(depth: rs.depth_frame, pose: Pose, img: Image) -> Image:
 
     return auxImg
  
-def calcMoments(contours) ->  float: # Img binary
+def calcMoments(contours) ->  float: 
     
     # Get the moments
     mu = [None]*len(contours)
@@ -312,7 +317,7 @@ def kMeans(img):
     stop = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     nAttemps = 10
     centroid = cv2.KMEANS_RANDOM_CENTERS
-    clusters = 6
+    clusters = 3
 
     _, labels, centers = cv2.kmeans(pixelValues, clusters, None, stop, nAttemps, centroid)
     centers = np.uint8(centers)
@@ -323,6 +328,18 @@ def kMeans(img):
   
 
 def extractHand(img: ImageBGR, pose: Pose, hand: Hand) -> Image:
+    """
+    Documentacion to guapa
+    Args:
+        asdas
+        adsfasdf
+        sadf
+        sdf
+        sadf
+
+    Returns:
+        Otra cosa
+    """
     h, w = img.shape[:2]
     b, g, r = cv2.split(img)
     kernel = np.ones((3,3), np.uint8)
@@ -349,14 +366,41 @@ def extractHand(img: ImageBGR, pose: Pose, hand: Hand) -> Image:
 
     return contourImg
 
+def extractArms(img, pose):
+    h, w = img.shape[:2]
 
+    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # Draw contours
+    contourImgBGR = np.zeros((h, w, 3), dtype='uint8')
+    contourImg = np.zeros((h, w), dtype='uint8')
+    
+    for i in range(len(contours)):
+        color = (random.randint(0,256), random.randint(0,256), random.randint(0,256))
+        cv2.drawContours(contourImgBGR, contours, i, (255,255,255), -1)
+        cv2.drawContours(contourImg, contours, i, 255, -1)
 
+    moment = cv2.moments(contourImg)
+    X = int(moment ["m10"] / moment["m00"])
+    Y = int(moment ["m01"] / moment["m00"])
+    cv2.circle(contourImgBGR, (X, Y), 15, (255, 0, 0), 1)
+    axes = (pose.center.x/2, pose.center.y/2)
+    print("Axes: {}".format(axes))
+    contourImgBGR = cv2.ellipse(contourImgBGR, (X,Y), axes, 0, 0, 360, (0,255,0))
+    
+         
+    # rc = cv2.minAreaRect(contours[0])
+    # box = cv2.boxPoints(rc)
+    # for p in box:
+        # pt = (p[0],p[1])
+        # print(pt)
+        # cv2.circle(contourImg,pt,5,(0,255,0),2)
 
+    cv2.imshow("img", contourImgBGR)
 
 
 
 if __name__ == '__main__':
-     
+
     # Openpose config
     params = setParams()
     opWrapper = op.WrapperPython()
@@ -376,7 +420,7 @@ if __name__ == '__main__':
     bgModel = np.zeros((1, 65), dtype='float')
 
     colorize = rs.colorizer()
-    colorize.set_option(rs.option.color_scheme,2)
+    colorize.set_option(rs.option.color_scheme, 2)
 
     try:
         while True:
@@ -440,8 +484,9 @@ if __name__ == '__main__':
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                  
                 handSegmented = extractHand(imgWoutBg, pose, hand)
+                extractArms(mask, pose)
                  
-                cv2.imshow("mask", handSegmented)
+                # cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
