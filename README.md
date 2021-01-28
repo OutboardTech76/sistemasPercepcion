@@ -17,3 +17,6 @@ Use openpose as a hand detector, extract a bounding box arround hand and segment
 After that evaluate two modes: closed and opened hand by calculating the area. Bigger area means open while smaller area means close.
 Use this values to control robot's gripper.
 
+Use 3D view to segmantate person in image. Uses OpenPose to calc distance between camera and person's hip, when each pixel's distance is inside a max and min values created according to ref frame we assume thats part of the body, otherwise is discarted.
+All of that generates a binary mask that's passed using bitwise_and to the original 2D image to segmentate body.
+Also included a siluette deteector using watershed algorithm.
