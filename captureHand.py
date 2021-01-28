@@ -8,6 +8,9 @@ import os
 from typing import Tuple
 from openpose import pyopenpose as op
 
+# Type aliases 
+Image = Tuple[Tuple[int]]
+ImageBGR = Tuple[Tuple[Tuple[int]]]
 
 # Point class with x,y,z values and point as a tuple (x,y)
 class Point():
@@ -43,6 +46,8 @@ class Hand:
         # Second dimension limits num person
         right = keypoints[1][0]
         left = keypoints[0][0]
+        self.keypointsRight = right
+        self.keypointsLeft = left
          
         self.rightBase = Point(right[0])
         self.rightThumb = Point(right[4])
@@ -58,7 +63,7 @@ class Hand:
         self.leftRing = Point(left[16])
         self.leftPinky = Point(left[20])
          
-    def centerRight(self, pose: Pose) -> Tuple[int, int]:
+    def centerRight(self) -> Tuple[int, int]:
         # base = pose.rightWrist.npPoint
         base = self.rightBase.npPoint
         baseThumb = (base + self.rightThumb.npPoint)/2
@@ -71,7 +76,7 @@ class Hand:
         center = tuple(center)
         return center
      
-    def centerLeft(self, pose: Pose) -> Tuple[int, int]:
+    def centerLeft(self) -> Tuple[int, int]:
         base = self.leftBase.npPoint
         baseThumb = (base + self.leftThumb.npPoint)/2
         baseIndex = (base + self.leftIndex.npPoint)/2
@@ -89,26 +94,86 @@ class Hand:
         #np.linalg.norm -> euclidean distance numpy
         norm = np.linalg.norm
         base = pose.rightWrist.npPoint
+        keypoints = self.keypointsRight
+         
+        lowThumb = Point(keypoints[2]) 
+        lowIndex = Point(keypoints[6]) 
+        lowMiddle = Point(keypoints[10]) 
+        lowRing = Point(keypoints[14]) 
+        lowPinky = Point(keypoints[18]) 
+         
+        midThumb = Point(keypoints[3]) 
+        midIndex = Point(keypoints[7]) 
+        midMiddle = Point(keypoints[11]) 
+        midRing = Point(keypoints[15]) 
+        midPinky = Point(keypoints[19]) 
+          
+           
         dist1 = abs(norm(base - self.rightThumb.npPoint))
         dist2 = abs(norm(base - self.rightIndex.npPoint))
         dist3 = abs(norm(base - self.rightMiddle.npPoint))
         dist4 = abs(norm(base - self.rightRing.npPoint))
         dist5 = abs(norm(base - self.rightPinky.npPoint))
+         
+        dist6 = abs(norm(base - lowThumb.npPoint))
+        dist7 = abs(norm(base - lowIndex.npPoint))
+        dist8 = abs(norm(base - lowMiddle.npPoint))
+        dist9 = abs(norm(base - lowRing.npPoint))
+        dist10 = abs(norm(base -lowPinky.npPoint))
+         
+        dist11 = abs(norm(base - midThumb.npPoint))
+        dist12 = abs(norm(base - midIndex.npPoint))
+        dist13 = abs(norm(base - midMiddle.npPoint))
+        dist14 = abs(norm(base - midRing.npPoint))
+        dist15 = abs(norm(base - midPinky.npPoint))
 
-        return max(dist1, dist2, dist3, dist4, dist5)
+        max1 = max(dist1, dist2, dist3, dist4, dist5)
+        max2 = max(dist6, dist7, dist8, dist9, dist10)
+        max3 = max(dist11, dist12, dist13, dist14, dist15)
+
+        return max(max1, max2, max3)
      
     def maxDistanceLeft(self, pose: Pose) -> float:
         #np.linalg.norm -> euclidean distance numpy
         norm = np.linalg.norm
         base = pose.leftWrist.npPoint
+        keypoints = self.keypointsLeft
+         
+        lowThumb = Point(keypoints[2]) 
+        lowIndex = Point(keypoints[6]) 
+        lowMiddle = Point(keypoints[10]) 
+        lowRing = Point(keypoints[14]) 
+        lowPinky = Point(keypoints[18]) 
+         
+        midThumb = Point(keypoints[3]) 
+        midIndex = Point(keypoints[7]) 
+        midMiddle = Point(keypoints[11]) 
+        midRing = Point(keypoints[15]) 
+        midPinky = Point(keypoints[19]) 
+         
         dist1 = abs(norm(base - self.leftThumb.npPoint))
         dist2 = abs(norm(base - self.leftIndex.npPoint))
         dist3 = abs(norm(base - self.leftMiddle.npPoint))
         dist4 = abs(norm(base - self.leftRing.npPoint))
         dist5 = abs(norm(base - self.leftPinky.npPoint))
-
-        return max(dist1, dist2, dist3, dist4, dist5)
-        
+         
+        dist6 = abs(norm(base - lowThumb.npPoint))
+        dist7 = abs(norm(base - lowIndex.npPoint))
+        dist8 = abs(norm(base - lowMiddle.npPoint))
+        dist9 = abs(norm(base - lowRing.npPoint))
+        dist10 = abs(norm(base -lowPinky.npPoint))
+         
+        dist11 = abs(norm(base - midThumb.npPoint))
+        dist12 = abs(norm(base - midIndex.npPoint))
+        dist13 = abs(norm(base - midMiddle.npPoint))
+        dist14 = abs(norm(base - midRing.npPoint))
+        dist15 = abs(norm(base - midPinky.npPoint))
+         
+        max1 = max(dist1, dist2, dist3, dist4, dist5)
+        max2 = max(dist6, dist7, dist8, dist9, dist10)
+        max3 = max(dist11, dist12, dist13, dist14, dist15)
+         
+        return max(max1, max2, max3)
 
      
 def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
@@ -148,7 +213,7 @@ def createMaskFormDepth(depth, thresh, tp):
 
 
 
-def extractContour(img, colorImg) -> np.ndarray: # img must be a binary image
+def extractContour(img: Image, colorImg: ImageBGR) -> Image: # img must be a binary image and colorImg 3channel
     kernel = np.ones((3,3), np.uint8)
     auxImg = img.copy()
     
@@ -186,7 +251,7 @@ def extractContour(img, colorImg) -> np.ndarray: # img must be a binary image
     # cv2.imshow("2", a)
     return markImg
 
-def removeBackground(depth, pose, img) -> np.ndarray:
+def removeBackground(depth: rs.depth_frame, pose: Pose, img: Image) -> Image:
     centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
     armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
      
@@ -220,43 +285,23 @@ def removeBackground(depth, pose, img) -> np.ndarray:
 
     return auxImg
  
-def moments(img):
-    threshold = 100
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY, dstCn = cv2.CV_8UC1)
-    
-    canny_output = cv2.Canny(img, threshold, threshold * 2)
-    print("1")
-    cv2.imshow("1", canny_output)
-    
-    contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    print("2")
+def calcMoments(contours) ->  float: # Img binary
     
     # Get the moments
     mu = [None]*len(contours)
-    print("3")
     for i in range(len(contours)):
         mu[i] = cv2.moments(contours[i])
     # Get the mass centers
-    print("4")
     mc = [None]*len(contours)
-    print("5")
     for i in range(len(contours)):
         # add 1e-5 to avoid division by zero
         mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
-    # Draw contours
-    print("6")
     
-    drawing = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
-    print("7")
-    
+    totalArea = 0
     for i in range(len(contours)):
-        color = (0, 255, 0)
-        cv2.drawContours(drawing, contours, i, color, 2)
-        cv2.circle(drawing, (int(mc[i][0]), int(mc[i][1])), 4, color, -1)
-    
-    
-    cv2.imshow('Contours', drawing)
- 
+        totalArea += mu[i]['m00']
+        
+    return totalArea
  
  
 def kMeans(img):
@@ -276,6 +321,37 @@ def kMeans(img):
     segmentedImg = segmentedData.reshape(auxImg.shape)
     cv2.imshow("K", segmentedImg)
   
+
+def extractHand(img: ImageBGR, pose: Pose, hand: Hand) -> Image:
+    h, w = img.shape[:2]
+    b, g, r = cv2.split(img)
+    kernel = np.ones((3,3), np.uint8)
+    imgColor = img.copy()
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY, dstCn = cv2.CV_8UC1)
+    centerRHand = hand.centerRight()
+    dist = hand.maxDistanceRight(pose)
+    maskCircle = np.zeros((h,w), dtype='uint8')
+    cv2.circle(maskCircle, centerRHand, int(2*dist/3), 255, -1)
+     
+    # Extract circle from original img 
+    maskedImg = cv2.bitwise_and(r, r, mask=maskCircle)
+     
+    auxImg = cv2.GaussianBlur(maskedImg, (3,3),cv2.BORDER_DEFAULT)
+    _, thresh = cv2.threshold(auxImg, 160, 255, cv2.THRESH_BINARY)
+    openImg = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel, iterations = 2)
+     
+    contours, _ = cv2.findContours(openImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # Draw contours
+    contourImg = np.zeros((h, w), dtype='uint8')
+    
+    for i in range(len(contours)):
+        cv2.drawContours(contourImg, contours, i, 255, -1)
+
+    return contourImg
+
+
+
+
 
 
 
@@ -360,17 +436,16 @@ if __name__ == '__main__':
              
             output = datum.cvOutputData
             try:
-                # mask = removeBackground(depth_frame, pose, img)
-                # imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
+                mask = removeBackground(depth_frame, pose, img)
+                imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                  
-                # cv2.imshow("mask", mask)
+                handSegmented = extractHand(imgWoutBg, pose, hand)
+                 
+                cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
-                centerRHand = hand.centerRight(pose)
-                dist = hand.maxDistanceRight(pose)
-                print("Dist: {}".format(dist))
-                output = cv2.circle(output, centerRHand, int(2*dist/3), (0,255,0), 5)
+
 
 
             except:
