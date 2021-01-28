@@ -57,18 +57,59 @@ class Hand:
         self.leftMiddle = Point(left[12])
         self.leftRing = Point(left[16])
         self.leftPinky = Point(left[20])
-
-    # Mesures distance between base and fingers returning the biggest
-    def largerMeasure(self) -> float:
+         
+    def centerRight(self, pose: Pose) -> Tuple[int, int]:
+        # base = pose.rightWrist.npPoint
+        base = self.rightBase.npPoint
+        baseThumb = (base + self.rightThumb.npPoint)/2
+        baseIndex = (base + self.rightIndex.npPoint)/2
+        baseMiddle = (base + self.rightMiddle.npPoint)/2
+        baseRing = (base + self.rightRing.npPoint)/2
+        basePinky = (base + self.rightPinky.npPoint)/2
+        center = (baseThumb + baseIndex + baseMiddle + baseRing + basePinky)/5
+        center = np.asarray(center, dtype='int')
+        center = tuple(center)
+        return center
+     
+    def centerLeft(self, pose: Pose) -> Tuple[int, int]:
+        base = self.leftBase.npPoint
+        baseThumb = (base + self.leftThumb.npPoint)/2
+        baseIndex = (base + self.leftIndex.npPoint)/2
+        baseMiddle = (base + self.leftMiddle.npPoint)/2
+        baseRing = (base + self.leftRing.npPoint)/2
+        basePinky = (base + self.leftPinky.npPoint)/2
+        
+        center = (baseThumb + baseIndex + baseMiddle + baseRing + basePinky)/5
+        center = np.asarray(center, dtype='int')
+        center = tuple(center)
+        return center
+            
+    # Mesures distance between wrist and fingers returning the biggest
+    def maxDistanceRight(self, pose: Pose) -> float:
         #np.linalg.norm -> euclidean distance numpy
         norm = np.linalg.norm
-        dist1 = abs(norm(self.rightBase.npPoint - self.rightThumb.npPoint))
-        dist2 = abs(norm(self.rightBase.npPoint - self.rightIndex.npPoint))
-        dist3 = abs(norm(self.rightBase.npPoint - self.rightMiddle.npPoint))
-        dist4 = abs(norm(self.rightBase.npPoint - self.rightRing.npPoint))
-        dist5 = abs(norm(self.rightBase.npPoint - self.rightPinky.npPoint))
+        base = pose.rightWrist.npPoint
+        dist1 = abs(norm(base - self.rightThumb.npPoint))
+        dist2 = abs(norm(base - self.rightIndex.npPoint))
+        dist3 = abs(norm(base - self.rightMiddle.npPoint))
+        dist4 = abs(norm(base - self.rightRing.npPoint))
+        dist5 = abs(norm(base - self.rightPinky.npPoint))
 
         return max(dist1, dist2, dist3, dist4, dist5)
+     
+    def maxDistanceLeft(self, pose: Pose) -> float:
+        #np.linalg.norm -> euclidean distance numpy
+        norm = np.linalg.norm
+        base = pose.leftWrist.npPoint
+        dist1 = abs(norm(base - self.leftThumb.npPoint))
+        dist2 = abs(norm(base - self.leftIndex.npPoint))
+        dist3 = abs(norm(base - self.leftMiddle.npPoint))
+        dist4 = abs(norm(base - self.leftRing.npPoint))
+        dist5 = abs(norm(base - self.leftPinky.npPoint))
+
+        return max(dist1, dist2, dist3, dist4, dist5)
+        
+
      
 def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
     if data.poseKeypoints is None:
@@ -105,10 +146,12 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
 
+
+
 def extractContour(img, colorImg) -> np.ndarray: # img must be a binary image
     kernel = np.ones((3,3), np.uint8)
     auxImg = img.copy()
-     
+    
     # Open image to reduce noise. After dilate to extract sure background 
     openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
     sureBg = cv2.dilate(openImg,kernel,iterations=3)
@@ -141,7 +184,6 @@ def extractContour(img, colorImg) -> np.ndarray: # img must be a binary image
     # cv2.drawContours(drawImg, contours, -1, 255, -1)
     # cv2.imshow("1", drawImg)
     # cv2.imshow("2", a)
-     
     return markImg
 
 def removeBackground(depth, pose, img) -> np.ndarray:
@@ -318,27 +360,18 @@ if __name__ == '__main__':
              
             output = datum.cvOutputData
             try:
-                # xAxis = pose.rightShoulder.x
-                # height, width, _ = output.shape
-                # cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
-                mask = removeBackground(depth_frame, pose, img)
-                # checkFlood(depth_frame, pose, img)
+                # mask = removeBackground(depth_frame, pose, img)
+                # imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                  
-                imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                 
-                cv2.imshow("mask", mask)
-                cv2.imshow("img", imgWoutBg)
+                # cv2.imshow("mask", mask)
+                # cv2.imshow("img", imgWoutBg)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
+                centerRHand = hand.centerRight(pose)
+                dist = hand.maxDistanceRight(pose)
+                print("Dist: {}".format(dist))
+                output = cv2.circle(output, centerRHand, int(2*dist/3), (0,255,0), 5)
 
-                # print("Right base X: {}, Y: {}".format(hand.rightBase.x, hand.rightBase.y))
-                # endX = int(hand.rightBase.x +20)
-                # endY = int(hand.rightBase.y +20)
-                # initX = int(hand.rightBase.x - hand.largerMeasure())
-                # initY = int(hand.rightBase.y - hand.largerMeasure())
-                # cv2.rectangle(output, (200, 200),(100, 500), (0, 255, 0),3)
-                # cv2.rectangle(output, ((hand.rightBase.x + 20), (hand.rightBase.y -20)),((hand.rightBase.x + hand.largerMeasure()), (hand.rightBase.y + hand.largerMeasure())), (0, 255, 0),3)
-                # cv2.rectangle(output, (initX, initY),(endX, endY), (0, 255, 0),3)
 
             except:
                 pass
