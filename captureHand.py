@@ -70,7 +70,7 @@ class Hand:
 
         return max(dist1, dist2, dist3, dist4, dist5)
      
-def setReferenceFrame(data) -> Tuple[Pose, Hand]:
+def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
     if data.poseKeypoints is None:
         return None, None
     else:
@@ -105,36 +105,10 @@ def createMaskFormDepth(depth, thresh, tp):
     depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
     return depth
 
-def removeBackground(depth, pose, img, colorImg) -> np.ndarray:
-    centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
-    armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
-     
-    maxValueDist = centerDist + 0.3
-    # maxValueDist2 = centerDist + (abs(centerDist - armDist))
-    # maxValueDist = max(maxValueDist1, maxValueDist2)
-    minValueDist = centerDist - 0.2
-
+def extractContour(img, colorImg) -> np.ndarray: # img must be a binary image
     kernel = np.ones((3,3), np.uint8)
+    auxImg = img.copy()
      
-    h, w = img.shape
-    imgData = np.asarray(img, dtype='uint8')
-    auxImg = np.copy(imgData)
-    for y in range(0,h):
-        for x in range(0,w):
-            dist = depth.get_distance(x, y)
-            if dist >= maxValueDist:
-                auxImg[y, x] = 0
-            elif dist == 0:
-                auxImg[y, x] = 0
-            elif dist < minValueDist:
-                auxImg[y, x] = 0
-            # else:
-                # auxImg[y, x] = 0
-
-    # Use gaussian for noise reduction
-    auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
-    # Apply threshold using Otsu algorith
-    _, auxImg = cv2.threshold(auxImg,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     # Open image to reduce noise. After dilate to extract sure background 
     openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
     sureBg = cv2.dilate(openImg,kernel,iterations=3)
@@ -153,40 +127,52 @@ def removeBackground(depth, pose, img, colorImg) -> np.ndarray:
     # Now, mark the region of unknown with zero
     markers[unknownRegion==255] = 0
      
-    # Apply watershed algorith to extract siluette in image
-    
+    # Apply watershed algorithm to extract siluette in image
     markers = cv2.watershed(colorImg, markers) 
-    colorImg[markers == -1] = [255,0,0]
+    # Uncomment to mark siluette in colorImg
+    # colorImg[markers == -1] = [255,0,0]
     
     markImg = np.zeros(auxImg.shape, dtype='uint8')
     markImg[markers == -1] = 255
+     
+    # contours, _ = cv2.findContours(markImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # drawImg = np.zeros((auxImg.shape),dtype='uint8')
+    # # for i in range(len(contours)):
+    # cv2.drawContours(drawImg, contours, -1, 255, -1)
+    # cv2.imshow("1", drawImg)
+    # cv2.imshow("2", a)
+     
+    return markImg
 
-    markImgCopy = markImg.copy()
+def removeBackground(depth, pose, img) -> np.ndarray:
+    centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
+    armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
      
-    mask = np.zeros((h+2,w+2), dtype='uint8')
+    maxValueDist = centerDist + 0.3
+    # maxValueDist2 = centerDist + (abs(centerDist - armDist))
+    # maxValueDist = max(maxValueDist1, maxValueDist2)
+    minValueDist = centerDist - 0.2
+
+    kernel = np.ones((3,3), np.uint8)
+     
+    h, w = img.shape[:2]
+    imgData = np.asarray(img, dtype='uint8')
+    auxImg = np.copy(imgData)
+    for y in range(0,h):
+        for x in range(0,w):
+            dist = depth.get_distance(x, y)
+            if dist >= maxValueDist:
+                auxImg[y, x] = 0
+            elif dist == 0:
+                auxImg[y, x] = 0
+            elif dist < minValueDist:
+                auxImg[y, x] = 0
+
+    # Use gaussian for noise reduction
+    auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
+    # Apply threshold using Otsu algorith
+    _, auxImg = cv2.threshold(auxImg,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     
-    _, markImgCopy, _, _ = cv2.floodFill(auxImg, mask, (0,0), 255)
-    # markImgCopy = cv2.bitwise_not(markImgCopy)
-    imgOut = markImg | markImgCopy
-    cv2.imshow("Flood", markImgCopy)
-    # cv2.imshow("mark", markImg)
-    # auxImg = cv2.bitwise_not(auxImg)
-    
-    # cv2.imshow("fg", markImg)
-    # cv2.imshow("2", auxImg)
-     
-    # filled = np.zeros_like(auxImg)
-    # contours, _ = cv2.findContours(auxImg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # contours = contours[0] if len(contours) == 2 else contours[1]
-    # the_contour = contours[0]
-    # print("3")
-    # x,y,w,h = cv2.boundingRect(the_contour)
-    # print("4")
-    # cv2.drawContours(filled, [the_contour], 0, 255, -1)
-    # print("5")
-     
-    # cv2.imshow("2", filled)
-      
     # auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
     # auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
 
@@ -335,11 +321,13 @@ if __name__ == '__main__':
                 # xAxis = pose.rightShoulder.x
                 # height, width, _ = output.shape
                 # cv2.rectangle(output, (xAxis, 0), (0, width), (0,255,0), 3)
-                mask = removeBackground(depth_frame, pose, img, color_image)
+                mask = removeBackground(depth_frame, pose, img)
+                # checkFlood(depth_frame, pose, img)
                  
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                  
-                # cv2.imshow("mask", mask)
+                cv2.imshow("mask", mask)
+                cv2.imshow("img", imgWoutBg)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
 
