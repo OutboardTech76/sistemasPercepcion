@@ -9,13 +9,13 @@ import pyrealsense2 as rs
 import operator
 import functools
 from nptyping import NDArray
-from typing import Tuple, Union, List, Callable
+from typing import Tuple, Union, List, Callable, Any
 import captureHand as ch
 
 
-Image = NDArray[(int, int), int]
+Image = NDArray[(Any, Any), int]
 DepthFrame = rs.depth_frame
-ColorImage = NDArray[(int, int, 3), int]
+ColorImage = NDArray[(Any, Any, 3), int]
 Color = Tuple(int, int)
 
 Img2Robot: Callable[[float, float,
