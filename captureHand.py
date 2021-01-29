@@ -262,53 +262,6 @@ def setParams() -> List[str]:
     # params["write_json"] = args.jsonPath 
     return params
 
-
-def extractContour(img: Image, colorImg: ColorImage) -> Image:
-    """
-    Extract image contour using watershed algorithm.
-    Args:
-        img -> Binary image.
-        colorImg -> Color image where calculate contour.
-    Returns:
-        Image with contour.
-    """
-    kernel = np.ones((3,3), np.uint8)
-    auxImg = img.copy()
-    
-    # Open image to reduce noise. After dilate to extract sure background 
-    openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
-    sureBg = cv2.dilate(openImg,kernel,iterations=3)
-    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
-    distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
-    _, sureFg = cv2.threshold(distTransform, 0.10*distTransform.max(), 255, 0)
-     
-    # Finding unknown region. Difference between sureBg and sureFg
-    sureFg = np.uint8(sureFg)
-    unknownRegion = cv2.subtract(sureBg, sureFg)
-     
-    # Marker labelling
-    _, markers = cv2.connectedComponents(sureFg)
-    # Add one to all labels so that sure background is not 0, but 1
-    markers = markers+1
-    # Now, mark the region of unknown with zero
-    markers[unknownRegion==255] = 0
-     
-    # Apply watershed algorithm to extract siluette in image
-    markers = cv2.watershed(colorImg, markers) 
-    # Uncomment to mark siluette in colorImg
-    # colorImg[markers == -1] = [255,0,0]
-    
-    markImg = np.zeros(auxImg.shape, dtype='uint8')
-    markImg[markers == -1] = 255
-     
-    # contours, _ = cv2.findContours(markImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # drawImg = np.zeros((auxImg.shape),dtype='uint8')
-    # # for i in range(len(contours)):
-    # cv2.drawContours(drawImg, contours, -1, 255, -1)
-    # cv2.imshow("1", drawImg)
-    # cv2.imshow("2", a)
-    return markImg
-
 def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
     """
     Function to remove brackground using depth sensor.
@@ -355,52 +308,6 @@ def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
 
     return auxImg
  
-def calcMoments(contours) ->  float: 
-    """
-    Calculate moments of given contours.
-
-    Args:
-        contours -> Contour image where calculate moments
-
-    Returns:
-        Total area in the given contours
-    """
-    
-    # Get the moments
-    mu = [None]*len(contours)
-    for i in range(len(contours)):
-        mu[i] = cv2.moments(contours[i])
-    # Get the mass centers
-    mc = [None]*len(contours)
-    for i in range(len(contours)):
-        # add 1e-5 to avoid division by zero
-        mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
-    
-    totalArea = 0
-    for i in range(len(contours)):
-        totalArea += mu[i]['m00']
-        
-    return totalArea
- 
- 
-def kMeans(img):
-    auxImg = np.copy(img)
-    pixelValues = auxImg.reshape((-1, 3))
-    pixelValues = np.float32(pixelValues)
-
-    stop = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    nAttemps = 10
-    centroid = cv2.KMEANS_RANDOM_CENTERS
-    clusters = 3
-
-    _, labels, centers = cv2.kmeans(pixelValues, clusters, None, stop, nAttemps, centroid)
-    centers = np.uint8(centers)
-    segmentedData = centers[labels.flatten()]
-
-    segmentedImg = segmentedData.reshape(auxImg.shape)
-    cv2.imshow("K", segmentedImg)
-  
-
 def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Image:
     """
     Function to segmentate hand from a given image.
@@ -439,26 +346,191 @@ def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Image:
 
     return contourImg
 
-def extractArms(img, pose):
-    h, w = img.shape[:2]
+def calcMoments(contours) ->  float: 
+    """
+    Calculate moments of given contours.
 
-    contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # Draw contours
-    contourImgBGR = np.zeros((h, w, 3), dtype='uint8')
-    contourImg = np.zeros((h, w), dtype='uint8')
+    Args:
+        contours -> Contour image where calculate moments
+
+    Returns:
+        Total area in the given contours
+    """
     
+    # Get the moments
+    mu = [None]*len(contours)
     for i in range(len(contours)):
-        color = (random.randint(0,256), random.randint(0,256), random.randint(0,256))
-        cv2.drawContours(contourImgBGR, contours, i, (255,255,255), -1)
-        cv2.drawContours(contourImg, contours, i, 255, -1)
+        mu[i] = cv2.moments(contours[i])
+    # Get the mass centers
+    mc = [None]*len(contours)
+    for i in range(len(contours)):
+        # add 1e-5 to avoid division by zero
+        mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
+    
+    totalArea = 0
+    for i in range(len(contours)):
+        totalArea += mu[i]['m00']
+        
+    return totalArea
+ 
 
-    moment = cv2.moments(contourImg)
-    X = int(moment ["m10"] / moment["m00"])
-    Y = int(moment ["m01"] / moment["m00"])
-    cv2.circle(contourImgBGR, (X, Y), 15, (255, 0, 0), 1)
-    axes = (pose.center.x/2, pose.center.y/2)
-    print("Axes: {}".format(axes))
-    contourImgBGR = cv2.ellipse(contourImgBGR, (X,Y), axes, 0, 0, 360, (0,255,0))
+def extractContour(img: Image, colorImg: ColorImage) -> Image:
+    """
+    Extract image contour using watershed algorithm.
+    Args:
+        img -> Binary image.
+        colorImg -> Color image where calculate contour.
+    Returns:
+        Image with contour.
+    """
+    kernel = np.ones((3,3), np.uint8)
+    auxImg = img.copy()
+    
+    # Open image to reduce noise. After dilate to extract sure background 
+    openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
+    sureBg = cv2.dilate(openImg,kernel,iterations=3)
+    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
+    distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
+    _, sureFg = cv2.threshold(distTransform, 0.10*distTransform.max(), 255, 0)
+     
+    # Finding unknown region. Difference between sureBg and sureFg
+    sureFg = np.uint8(sureFg)
+    unknownRegion = cv2.subtract(sureBg, sureFg)
+     
+    # Marker labelling
+    _, markers = cv2.connectedComponents(sureFg)
+    # Add one to all labels so that sure background is not 0, but 1
+    markers = markers+1
+    # Now, mark the region of unknown with zero
+    markers[unknownRegion==255] = 0
+     
+    # Apply watershed algorithm to extract siluette in image
+    markers = cv2.watershed(colorImg, markers) 
+    # Uncomment to mark siluette in colorImg
+    # colorImg[markers == -1] = [255,0,0]
+    
+    markImg = np.zeros(auxImg.shape, dtype='uint8')
+    markImg[markers == -1] = 255
+     
+    # contours, _ = cv2.findContours(markImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # drawImg = np.zeros((auxImg.shape),dtype='uint8')
+    # # for i in range(len(contours)):
+    # cv2.drawContours(drawImg, contours, -1, 255, -1)
+    # cv2.imshow("1", drawImg)
+    # cv2.imshow("2", a)
+    return markImg
+ 
+def kMeans(img):
+    auxImg = np.copy(img)
+    pixelValues = auxImg.reshape((-1, 3))
+    pixelValues = np.float32(pixelValues)
+
+    stop = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    nAttemps = 10
+    centroid = cv2.KMEANS_RANDOM_CENTERS
+    clusters = 3
+
+    _, labels, centers = cv2.kmeans(pixelValues, clusters, None, stop, nAttemps, centroid)
+    centers = np.uint8(centers)
+    segmentedData = centers[labels.flatten()]
+
+    segmentedImg = segmentedData.reshape(auxImg.shape)
+    cv2.imshow("K", segmentedImg)
+     
+  
+def removeBackground2(depth: DepthFrame, pose: Pose, img: Image, colorImg: ColorImage) -> Image:
+    """
+    Function to remove brackground using depth sensor.
+
+    Args:
+        depth -> Depth frame used to calculate distance
+        pose -> Pose class used to calculate center point where measure distance
+        img -> Depth image in gray scale
+
+    Returns:
+        Binary image without barkground, just person's siluette
+
+    """
+    centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
+     
+    maxValueDist = centerDist + 0.3
+    minValueDist = centerDist - 0.2
+     
+    kernel = np.ones((3,3), np.uint8)
+    h, w = img.shape[:2]
+    imgData = np.asarray(img, dtype='uint8')
+    auxImg = np.copy(imgData)
+    for y in range(0,h):
+        for x in range(0,w):
+            dist = depth.get_distance(x, y)
+            if dist >= maxValueDist:
+                auxImg[y, x] = 0
+            elif dist == 0:
+                auxImg[y, x] = 0
+            elif dist < minValueDist:
+                auxImg[y, x] = 0
+
+    # Use gaussian for noise reduction
+    auxImg = cv2.GaussianBlur(auxImg, (5,5),cv2.BORDER_DEFAULT)
+    # Apply threshold using Otsu algorith
+    _, auxImg = cv2.threshold(auxImg,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    # Open image to reduce noise. After dilate to extract sure background 
+    openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
+    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
+    distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
+    _, sureFg = cv2.threshold(distTransform, 0.40*distTransform.max(), 255, 0)
+    sureFg = np.uint8(sureFg)
+     
+    # Dilete sureFg (body) and extract its contours
+    dilatedFg = cv2.dilate(sureFg, cv2.getStructuringElement(cv2.MORPH_RECT, (7,7)),iterations=8)
+    contours, _ = cv2.findContours(dilatedFg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contourImg = np.zeros((h, w), dtype='uint8')
+    bodyBox = np.zeros((h,w), dtype='uint8')
+
+    if len(contours) != 0:
+        # Extract max countour and draw a box 
+        c = max(contours, key = cv2.contourArea)
+        x,y,w,h = cv2.boundingRect(c)
+        cv2.rectangle(bodyBox,(x,y),(x+w,y+h),255, -1)
+         
+    # Remove bodyBox from openImg to get only head and arms. Calc its contours
+    imgWoutBody = cv2.subtract(openImg, bodyBox)
+    contours, _ = cv2.findContours(imgWoutBody, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+     
+    # Check area of every contour and draw the bigger ones (arms)
+    for i in range(len(contours)):
+        area = cv2.contourArea(contours[i])
+        if area > 2000:
+            cv2.drawContours(contourImg, contours, i, 255, -1)
+    
+
+    cv2.imshow("3", bodyBox)
+    cv2.imshow("2", contourImg)
+     
+
+    return auxImg
+
+def extractArms(depth, pose, img, colorImg):
+    h, w = img.shape[:2]
+    img2 = removeBackground2(depth, pose, img, colorImg)
+
+    # contours, _ = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    # # Draw contours
+    # contourImgBGR = np.zeros((h, w, 3), dtype='uint8')
+    # contourImg = np.zeros((h, w), dtype='uint8')
+    
+    # for i in range(len(contours)):
+        # color = (random.randint(0,256), random.randint(0,256), random.randint(0,256))
+        # cv2.drawContours(contourImgBGR, contours, i, (255,255,255), -1)
+        # cv2.drawContours(contourImg, contours, i, 255, -1)
+
+    # moment = cv2.moments(contourImg)
+    # X = int(moment ["m10"] / moment["m00"])
+    # Y = int(moment ["m01"] / moment["m00"])
+    # cv2.circle(contourImgBGR, (X, Y), 15, (255, 0, 0), 1)
+    # axes = (pose.center.x/2, pose.center.y/2)
+    # print("Axes: {}".format(axes))
+    # contourImgBGR = cv2.ellipse(contourImgBGR, (X,Y), axes, 0, 0, 360, (0,255,0))
     
          
     # rc = cv2.minAreaRect(contours[0])
@@ -468,8 +540,7 @@ def extractArms(img, pose):
         # print(pt)
         # cv2.circle(contourImg,pt,5,(0,255,0),2)
 
-    cv2.imshow("img", contourImgBGR)
-
+    # cv2.imshow("img", contourImgBGR)
 
 
 if __name__ == '__main__':
@@ -557,7 +628,8 @@ if __name__ == '__main__':
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                  
                 handSegmented = extractHand(imgWoutBg, pose, hand)
-                extractArms(mask, pose)
+                extractArms(depth_frame, pose, img, color_image)
+
                  
                 # cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
