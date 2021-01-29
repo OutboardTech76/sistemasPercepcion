@@ -57,6 +57,22 @@ class Pose:
         self.leftWrist = Point(keypoints[7])
         self.center = Point(keypoints[8])
 
+    def distRightArm(self) -> float:
+        """
+        Euclidean distance between shoulder and wrist.
+        """
+        norm = np.linalg.norm
+        dist =  abs(norm(self.rightShoulder.npPoint - self.rightWrist.npPoint))
+        return dist
+     
+    def distLeftArm(self) -> float:
+        """
+        Euclidean distance between shoulder and wrist.
+        """
+        norm = np.linalg.norm
+        dist =  abs(norm(self.leftShoulder.npPoint - self.leftWrist.npPoint))
+        return dist
+
 class Hand:
     """
     Class with finger points captured from OpenPose.
