@@ -16,7 +16,7 @@ import captureHand as ch
 Image = NDArray[(Any, Any), int]
 DepthFrame = rs.depth_frame
 ColorImage = NDArray[(Any, Any, 3), int]
-Color = Tuple(int, int)
+Color = Tuple[int, int]
 
 Img2Robot: Callable[[float, float,
                      float], Tuple[float, float, float]] = None
@@ -81,8 +81,10 @@ def _mean(xs: List[float]) -> float:
 def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
     time_now: float = time.time()
     if Calibracion.curr_state == 0:
+        _pon_rectangulo_centro(img, (0, 0, 255))
+        print("Estado 1")
+        print("Condicion 1: {}".format(time_now - Calibracion.time_begining))
         if time_now - Calibracion.time_begining < Calibracion.time_to_start:
-            _pon_rectangulo_centro(img, (0, 0, 255))
             Calibracion.curr_state += 1
     elif Calibracion.curr_state == 1:
         c_dist: float = _get_distance_to_center(
