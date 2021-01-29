@@ -16,7 +16,7 @@ import captureHand as ch
 Image = NDArray[(Any, Any), int]
 DepthFrame = rs.depth_frame
 ColorImage = NDArray[(Any, Any, 3), int]
-Color = Tuple(int, int)
+Color = Tuple[int, int]
 
 Img2Robot: Callable[[float, float,
                      float], Tuple[float, float, float]] = None
