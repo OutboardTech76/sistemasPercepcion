@@ -10,6 +10,7 @@ import ros
 from typing import Tuple, Any, Dict, List, Union
 from nptyping import NDArray
 from openpose import pyopenpose as op
+import calibration_routine as calib
 
 random.seed(123)
 
@@ -550,6 +551,12 @@ if __name__ == '__main__':
              
             output = datum.cvOutputData
             try:
+                if calib.Calibracion(color_image, depth_frame) == 0:
+                    print("1")
+                    continue
+                print("2")
+
+
                 mask = removeBackground(depth_frame, pose, img)
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                 handSegmented, handContour = extractHand(imgWoutBg, pose, hand)
