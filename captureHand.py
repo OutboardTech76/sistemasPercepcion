@@ -6,22 +6,29 @@ import json
 import sys
 import os
 import random 
-from typing import Tuple, Any
+from typing import Tuple, Any, Dict
 from nptyping import NDArray
 from openpose import pyopenpose as op
 
 random.seed(123)
 
 # Type aliases
+Keypoint = NDArray[(Any, Any, Any), Any]
+PoseKeypoints = op.Datum.poseKeypoints
+HandKeypoints = op.Datum.handKeypoints
 Image = NDArray[(Any, Any), int]
-ImageBGR = NDArray[(Any, Any, 3), int]
+ColorImage = NDArray[(Any, Any, 3), int]
+DepthFrame = rs.depth_frame
 
-class Point():
+class Point:
     """
     Point class.
-    Creates Point as numpy array (npPoint), with x, y and z (x,y,z) and as a tuple of (x,y) points (point)
+    Creates Point as numpy array (npPoint), with x, y and z (x,y,z) and as a tuple of (x,y) points (point).
+    Also creates score returned from openpose's keypoints.
+    Args:
+        pt -> numpy array with keypoints containing [x, y, score]. Keypoints returned from OpenPose.
     """
-    def __init__(self,pt):
+    def __init__(self, pt: Keypoint):
         # Convert to numpy float or there will be error when printing lines
         pt =  np.float32(pt)
         self.npPoint = pt[0:2]
@@ -36,7 +43,12 @@ class Point():
             self.draw = False
 
 class Pose:
-    def __init__(self,keypoints):
+    """
+    Class with arms and hip points captured from OpenPose.
+    Args:
+        keypoints -> Keypoint vector extracted from OpenPose with Points of body. 
+    """
+    def __init__(self, keypoints: PoseKeypoints):
         self.rightShoulder = Point(keypoints[2])
         self.rightElbow = Point(keypoints[3])
         self.rightWrist = Point(keypoints[4])
@@ -45,11 +57,15 @@ class Pose:
         self.leftWrist = Point(keypoints[7])
         self.center = Point(keypoints[8])
 
-# Classes used to define hands and fingers
-# handKeypoint[0] -> right hand
-# handKeypoint[1] -> left hand
 class Hand:
-    def __init__(self, keypoints):
+    """
+    Class with finger points captured from OpenPose.
+    HandKeypoint[0] -> right hand.
+    HandKeypoint[1] -> left hand.
+    Args:
+        keypoints -> Keypoint vector extracted from OpenPose with hand points. 
+    """
+    def __init__(self, keypoints: HandKeypoints):
         # Second dimension limits num person
         right = keypoints[1][0]
         left = keypoints[0][0]
@@ -71,6 +87,11 @@ class Hand:
         self.leftPinky = Point(left[20])
          
     def centerRight(self) -> Tuple[int, int]:
+        """
+        Center point of right hand.
+        Returns:
+            (x, y) position.
+        """
         # base = pose.rightWrist.npPoint
         base = self.rightBase.npPoint
         baseThumb = (base + self.rightThumb.npPoint)/2
@@ -84,6 +105,11 @@ class Hand:
         return center
      
     def centerLeft(self) -> Tuple[int, int]:
+        """
+        Center point of left hand.
+        Returns:
+            (x, y) position.
+        """
         base = self.leftBase.npPoint
         baseThumb = (base + self.leftThumb.npPoint)/2
         baseIndex = (base + self.leftIndex.npPoint)/2
@@ -96,8 +122,14 @@ class Hand:
         center = tuple(center)
         return center
             
-    # Mesures distance between wrist and fingers returning the biggest
     def maxDistanceRight(self, pose: Pose) -> float:
+        """
+        Measures distance between wrist and every finger of the right hand.
+        Args:
+            pose -> Pose class to extract wrist point.
+        Returns:
+            Maximum distance between points.
+        """
         #np.linalg.norm -> euclidean distance numpy
         norm = np.linalg.norm
         base = pose.rightWrist.npPoint
@@ -141,6 +173,13 @@ class Hand:
         return max(max1, max2, max3)
      
     def maxDistanceLeft(self, pose: Pose) -> float:
+        """
+        Measures distance between wrist and every finger of the left hand.
+        Args:
+            pose -> Pose class to extract wrist point.
+        Returns:
+            Maximum distance between points.
+        """
         #np.linalg.norm -> euclidean distance numpy
         norm = np.linalg.norm
         base = pose.leftWrist.npPoint
@@ -183,6 +222,13 @@ class Hand:
         return max(max1, max2, max3)
 
 def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
+    """
+    Creates Hand and Pose classes if one person is detected.
+    Args:
+        data -> Datum parameter given by OpenPose.
+    Returns:
+        Pose, Hand classes.
+    """
     if data.poseKeypoints is None:
         return None, None
     else:
@@ -199,7 +245,12 @@ def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
             # poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
             return pose, hand
     
-def setParams():
+def setParams() -> Dict(str):
+    """
+    Initial OpenPose params.
+    Returns:
+        Params.
+    """
     # args = parser.parse_args()
     params = dict()
     params["model_folder"] = "/home/paco/openpose/models"
@@ -211,14 +262,16 @@ def setParams():
     # params["write_json"] = args.jsonPath 
     return params
 
-def createMaskFormDepth(depth, thresh, tp):
-    cv2.threshold(depth, thresh, 255, tp, depth)
-    depth = cv2.dilate(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4), (3,3)))
-    depth = cv2.erode(depth, cv2.getStructuringElement(cv2.MORPH_RECT,(7,7),(6,6)))
-    return depth
 
-
-def extractContour(img: Image, colorImg: ImageBGR) -> Image: # img must be a binary image and colorImg 3channel
+def extractContour(img: Image, colorImg: ColorImage) -> Image:
+    """
+    Extract image contour using watershed algorithm.
+    Args:
+        img -> Binary image.
+        colorImg -> Color image where calculate contour.
+    Returns:
+        Image with contour.
+    """
     kernel = np.ones((3,3), np.uint8)
     auxImg = img.copy()
     
@@ -256,7 +309,19 @@ def extractContour(img: Image, colorImg: ImageBGR) -> Image: # img must be a bin
     # cv2.imshow("2", a)
     return markImg
 
-def removeBackground(depth: rs.depth_frame, pose: Pose, img: Image) -> Image:
+def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
+    """
+    Function to remove brackground using depth sensor.
+
+    Args:
+        depth -> Depth frame used to calculate distance
+        pose -> Pose class used to calculate center point where measure distance
+        img -> Depth image in gray scale
+
+    Returns:
+        Binary image without barkground, just person's siluette
+
+    """
     centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
     armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
      
@@ -291,6 +356,15 @@ def removeBackground(depth: rs.depth_frame, pose: Pose, img: Image) -> Image:
     return auxImg
  
 def calcMoments(contours) ->  float: 
+    """
+    Calculate moments of given contours.
+
+    Args:
+        contours -> Contour image where calculate moments
+
+    Returns:
+        Total area in the given contours
+    """
     
     # Get the moments
     mu = [None]*len(contours)
@@ -327,18 +401,17 @@ def kMeans(img):
     cv2.imshow("K", segmentedImg)
   
 
-def extractHand(img: ImageBGR, pose: Pose, hand: Hand) -> Image:
+def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Image:
     """
-    Documentacion to guapa
+    Function to segmentate hand from a given image.
+     
     Args:
-        asdas
-        adsfasdf
-        sadf
-        sdf
-        sadf
+        img -> Color image where segment hand
+        pose -> Pose class used to extract hands position
+        hand -> Hand class used to extract hand position
 
     Returns:
-        Otra cosa
+        Binary image with the segmented hand
     """
     h, w = img.shape[:2]
     b, g, r = cv2.split(img)
