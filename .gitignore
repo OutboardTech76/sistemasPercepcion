@@ -2,3 +2,4 @@ ejemplosTFG/*
 jsonFiles/*
 openpose_python.py
 test.py
+__pycache__
