@@ -6,7 +6,7 @@ import json
 import sys
 import os
 import random 
-from typing import Tuple, Any, Dict
+from typing import Tuple, Any, Dict, List
 from nptyping import NDArray
 from openpose import pyopenpose as op
 
@@ -245,7 +245,7 @@ def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
             # poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
             return pose, hand
     
-def setParams() -> Dict(str):
+def setParams() -> List[str]:
     """
     Initial OpenPose params.
     Returns:
