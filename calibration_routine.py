@@ -85,18 +85,24 @@ def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
         print("Estado 1")
         print("Condicion 1: {}".format(time_now - Calibracion.time_begining))
         if time_now - Calibracion.time_begining < Calibracion.time_to_start:
+            print("Saiendo de Estado 1")
             Calibracion.curr_state += 1
     elif Calibracion.curr_state == 1:
+        print("Estado 2")
         c_dist: float = _get_distance_to_center(
             d_img, img.shape[0], img.shape[1])
+        print("Distancia a centro {}".format(c_dist))
         if (c_dist > Calibracion.lower_dist_th and c_dist <
                 Calibracion.higher_dist_th):
             _pon_rectangulo_centro(img, (0, 255, 0))
             Calibracion.it_counter += 1
+            print("Guay")
         else:
+            print("No Guay")
             _pon_rectangulo_centro(img, (0, 0, 255))
             Calibracion.it_counter = 0
         if Calibracion.it_counter >= Calibracion.it_to_start_cal:
+            print("Saliendo de Estado 2")
             Calibracion.curr_state += 1
             Calibracion.it_counter = 0
     elif Calibracion.curr_state == 2:
