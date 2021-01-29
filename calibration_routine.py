@@ -6,8 +6,10 @@ Realsense D435 para la asignatura de Percepcion
 import cv2
 import time
 import pyrealsense2 as rs
+import operator
+import functools
 from nptyping import NDArray
-from typing import Tuple, Union
+from typing import Tuple, Union, List, Callable
 import captureHand as ch
 
 
@@ -15,6 +17,9 @@ Image = NDArray[(int, int), int]
 DepthFrame = rs.depth_frame
 ColorImage = NDArray[(int, int, 3), int]
 Color = Tuple(int, int)
+
+Img2Robot: Callable[[float, float,
+                     float], Tuple[float, float, float]] = None
 
 
 def static_vars(**kwargs):
@@ -56,17 +61,23 @@ def _get_distance_to_center(
         d_img: DepthFrame,
         width: int,
         heigth: int) -> float:
-    return d_img.get_distance(d_img, int(width / 2), int(heigth / 2))
+    return d_img.get_distance(int(width / 2), int(heigth / 2))
+
+
+def _mean(xs: List[float]) -> float:
+    return functools.reduce(operator.add, xs, 0.0) / len(xs)
 
 
 @static_vars(time_to_start=10.0,
              lower_dist_th=1.3,
              higher_dist_th=1.75,
-             it_to_start=15,
+             it_to_start_cal=15,
+             it_to_start_arm=5,
              time_begining=time.time(),
              curr_state=0,
              it_counter=0,
-             arms_xs=[[], []])
+             arms_xs=[[], []],
+             robot_mlen=1.5)
 def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
     time_now: float = time.time()
     if Calibracion.curr_state == 0:
@@ -82,8 +93,8 @@ def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
             Calibracion.it_counter += 1
         else:
             _pon_rectangulo_centro(img, (0, 0, 255))
-            it_counter = 0
-        if it_counter >= Calibracion.it_to_start:
+            Calibracion.it_counter = 0
+        if Calibracion.it_counter >= Calibracion.it_to_start_cal:
             Calibracion.curr_state += 1
             Calibracion.it_counter = 0
     elif Calibracion.curr_state == 2:
@@ -93,4 +104,20 @@ def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
         Calibracion.arms_xs[1].append(r_arm_d)
         Calibracion.it_counter += 1
 
+        if Calibracion.it_counter >= Calibracion.it_to_start_arm:
+            Calibracion.curr_state += 1
+    elif Calibracion.curr_state == 3:
+        Calibracion.arm_mean = [
+            _mean(
+                Calibracion.arms_xs[0]), _mean(
+                Calibracion.arms_xs[1])]
+        Calibracion.curr_state += 1
+    elif Calibracion.curr_state == 4:
+        global Img2Robot
+
+        def Img2Robot(pos): return pos * 0.92 * \
+            Calibracion.robot_mlen[0] / Calibracion.arm_mean[0]
+        Calibracion.curr_state = 5
+    elif Calibracion.curr_state == 5:
+        return 1
     return 0
