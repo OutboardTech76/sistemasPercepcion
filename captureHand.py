@@ -6,7 +6,8 @@ import json
 import sys
 import os
 import random 
-from typing import Tuple, Any, Dict, List
+import ros
+from typing import Tuple, Any, Dict, List, Union
 from nptyping import NDArray
 from openpose import pyopenpose as op
 
@@ -19,6 +20,7 @@ HandKeypoints = op.Datum.handKeypoints
 Image = NDArray[(Any, Any), int]
 ColorImage = NDArray[(Any, Any, 3), int]
 DepthFrame = rs.depth_frame
+Contour = List[Any]
 
 class Point:
     """
@@ -237,7 +239,7 @@ class Hand:
          
         return max(max1, max2, max3)
 
-def setReferenceFrame(data: op.Datum) -> Tuple[Pose, Hand]:
+def setReferenceFrame(data: op.Datum) -> Union[Pose, Hand]:
     """
     Creates Hand and Pose classes if one person is detected.
     Args:
@@ -324,7 +326,7 @@ def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
 
     return auxImg
  
-def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Image:
+def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Union[Image, Contour]:
     """
     Function to segmentate hand from a given image.
      
@@ -360,9 +362,9 @@ def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Image:
     for i in range(len(contours)):
         cv2.drawContours(contourImg, contours, i, 255, -1)
 
-    return contourImg
+    return contourImg, contours
 
-def calcMoments(contours) ->  float: 
+def calcMoments(contours: Contour) ->  float: 
     """
     Calculate moments of given contours.
 
@@ -518,6 +520,9 @@ if __name__ == '__main__':
     colorize = rs.colorizer()
     colorize.set_option(rs.option.color_scheme, 2)
 
+    # Init ros node
+    # ros.rospy.init_node('VisualControl')
+
     try:
         while True:
             frames = pipeline.wait_for_frames()
@@ -547,10 +552,13 @@ if __name__ == '__main__':
             try:
                 mask = removeBackground(depth_frame, pose, img)
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                 
-                handSegmented = extractHand(imgWoutBg, pose, hand)
+                handSegmented, handContour = extractHand(imgWoutBg, pose, hand)
                 armsSegmented = extractArms(mask)
 
+                # if calcMoments(handContour) > 2000:
+                    # ros.gripper(True)
+                # else:
+                    # ros.gripper(False)
                  
                 # cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
