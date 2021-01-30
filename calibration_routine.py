@@ -10,7 +10,6 @@ import operator
 import functools
 from nptyping import NDArray
 from typing import Tuple, Union, List, Callable, Any
-# import captureHand as ch
 from captureHand import Pose
 import numpy as np
 
@@ -30,6 +29,15 @@ def static_vars(**kwargs):
             setattr(func, k, kwargs[k])
         return func
     return decorate
+ 
+
+
+ 
+def img2robot(pos):
+    if calibDone is True:
+        newPos = pos* 0.92 * robotLength / armMean
+        return newPos
+
 
 
 def _pon_rectangulo_centro(img: Union[Image, ColorImage],
@@ -82,56 +90,63 @@ def _mean(xs: List[float]) -> float:
              curr_state=0,
              it_counter=0,
              arms_xs=[[], []],
-             robot_mlen=1.5)
-def Calibracion(img: ColorImage, d_img: DepthFrame, pose: Pose) -> int:
+             robot_mlen=1.5,
+             calib_done=False)
+def calibration(img: ColorImage, d_img: DepthFrame, pose: Pose) -> int:
     time_now: float = time.time()
-    if Calibracion.curr_state == 0:
+    if calibration.curr_state == 0:
         output = _pon_rectangulo_centro(img, (0, 0, 255))
         print("State 1")
         cv2.imshow("out", output)
-        if (time_now - Calibracion.time_begining) >= Calibracion.time_to_start:
-            Calibracion.curr_state += 1
-    elif Calibracion.curr_state == 1:
+        if (time_now - calibration.time_begining) >= calibration.time_to_start:
+            calibration.curr_state += 1
+    elif calibration.curr_state == 1:
         print("State 2")
         c_dist: float = _get_distance_to_center(
             d_img, img.shape[0], img.shape[1])
-        if (c_dist > Calibracion.lower_dist_th and c_dist <
-                Calibracion.higher_dist_th):
+        if (c_dist > calibration.lower_dist_th and c_dist <
+                calibration.higher_dist_th):
             print("T pose")
             output = _pon_rectangulo_centro(img, (0, 255, 0))
             cv2.imshow("out", output)
-            Calibracion.it_counter += 1
+            calibration.it_counter += 1
         else:
             output = _pon_rectangulo_centro(img, (0, 0, 255))
             cv2.imshow("out", output)
-            Calibracion.it_counter = 0
-        if Calibracion.it_counter >= Calibracion.it_to_start_cal:
-            Calibracion.curr_state += 1
-            Calibracion.it_counter = 0
-    elif Calibracion.curr_state == 2:
+            calibration.it_counter = 0
+        if calibration.it_counter >= calibration.it_to_start_cal:
+            calibration.curr_state += 1
+            calibration.it_counter = 0
+    elif calibration.curr_state == 2:
         print("State 3")
+        output = _pon_rectangulo_centro(img, (0, 255, 0))
+        cv2.imshow("out", output)
         l_arm_d = pose.distLeftArm()
         r_arm_d = pose.distRightArm()
-        Calibracion.arms_xs[0].append(l_arm_d)
-        Calibracion.arms_xs[1].append(r_arm_d)
-        Calibracion.it_counter += 1
+        calibration.arms_xs[0].append(l_arm_d)
+        calibration.arms_xs[1].append(r_arm_d)
+        calibration.it_counter += 1
 
-        if Calibracion.it_counter >= Calibracion.it_to_start_arm:
-            Calibracion.curr_state += 1
-    elif Calibracion.curr_state == 3:
+        if calibration.it_counter >= calibration.it_to_start_arm:
+            calibration.curr_state += 1
+    elif calibration.curr_state == 3:
         print("State 4")
-        Calibracion.arm_mean = [
+        output = _pon_rectangulo_centro(img, (0, 255, 0))
+        cv2.imshow("out", output)
+        calibration.arm_mean = [
             _mean(
-                Calibracion.arms_xs[0]), _mean(
-                Calibracion.arms_xs[1])]
-        Calibracion.curr_state += 1
-    elif Calibracion.curr_state == 4:
-        global Img2Robot
+                calibration.arms_xs[0]), _mean(
+                calibration.arms_xs[1])]
+        calibration.curr_state += 1
+    elif calibration.curr_state == 4:
+        global calibDone
+        global armMean
+        global robotLength
+        calibration.calib_done = True
 
-        def Img2Robot(pos): return pos * 0.92 * \
-            Calibracion.robot_mlen[0] / Calibracion.arm_mean[0]
-        Calibracion.curr_state = 5
-    elif Calibracion.curr_state == 5:
+        armMean = calibration.arm_mean[0]
+        robotLength = calibration.robot_mlen
+        calibDone =  calibration.calib_done
+
         print("Calibration done")
-        return 1
-    return 0
+        cv2.destroyWindow("out")
