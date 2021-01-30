@@ -566,8 +566,15 @@ if __name__ == '__main__':
                 if calib.calibration.calib_done is False:
                     calib.calibration(color_image, depth_frame, pose)
                 if calib.calibration.calib_done is True:
-                    a = np.array([5,4,2])
-                    print("XYZ vector: {}".format(calib.img2robot(a)))
+                    distCenter = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
+                    distWrist = depth_frame.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
+                    dist = distCenter - distWrist
+                    if len(pose.rightWrist.npPoint) == 2:
+                        pose.rightWrist.npPoint = np.append(pose.rightWrist.npPoint, dist)
+                    else:
+                        pose.rightWrist.npPoint[2] = dist
+                    print("XYZ image: {}".format(pose.rightWrist.npPoint))
+                    print("XYZ cartes: {}".format(calib.img2robot(pose.rightWrist.npPoint)))
 
 
                 mask = removeBackground(depth_frame, pose, img)
