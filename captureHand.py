@@ -556,10 +556,18 @@ if __name__ == '__main__':
             # Show images
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('RealSense', images)
+            # if calib.calibration.curr_state != 5:
+                # calib.calibration(color_image, depth_frame, pose)
+            # if calib.calibration(color_image, depth_frame, pose) != 1:
+                # pass
+                # continue
+            # print("exit")
             try:
-                if calib.Calibracion(color_image, depth_frame, pose) == 0:
-                    continue
-                print("XYZ vector: {}".format(calib.Calibracion.Img2Robot([0.2, 4, 2])))
+                if calib.calibration.calib_done is False:
+                    calib.calibration(color_image, depth_frame, pose)
+                if calib.calibration.calib_done is True:
+                    a = np.array([5,4,2])
+                    print("XYZ vector: {}".format(calib.img2robot(a)))
 
 
                 mask = removeBackground(depth_frame, pose, img)
