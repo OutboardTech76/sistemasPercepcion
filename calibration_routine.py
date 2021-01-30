@@ -18,6 +18,7 @@ Image = NDArray[(Any, Any), int]
 DepthFrame = rs.depth_frame
 ColorImage = NDArray[(Any, Any, 3), int]
 Color = Tuple[int, int]
+Position = NDArray[(Any, Any, Any), int]
 
 Img2Robot: Callable[[float, float,
                      float], Tuple[float, float, float]] = None
@@ -33,9 +34,24 @@ def static_vars(**kwargs):
 
 
  
-def img2robot(pos):
+def img2robot(pos: Position) -> Position:
+    """
+    Function that transforms X, Y position from image to robot coordinates and reorders (x,y,z) from image coordinates to robot coordinates.
+    Returns:
+        Transformed position as a np.array (x,y,z) in robots coordinates
+    """
     if calibDone is True:
-        newPos = pos* 0.92 * robotLength / armMean
+        posXY = pos[:2]
+        auxPos = posXY* 0.92 * robotLength / armMean
+        auxPos = np.append(auxPos, pos[2])
+        newPos = np.zeros(auxPos.shape, dtype='uint8')
+        # (x, y, z) in user coordinates are (y, z, x) in robot coordinates
+        # Change them and return coordinates in correct order for the robot
+        newPos[0] = auxPos[1]
+        newPos[1] = auxPos[2]
+        newPos[2] = auxPos[0]
+
+        
         return newPos
 
 
