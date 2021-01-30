@@ -10,7 +10,9 @@ import operator
 import functools
 from nptyping import NDArray
 from typing import Tuple, Union, List, Callable, Any
-import captureHand as ch
+# import captureHand as ch
+from captureHand import Pose
+import numpy as np
 
 
 Image = NDArray[(Any, Any), int]
@@ -46,13 +48,16 @@ def _pon_rectangulo_centro(img: Union[Image, ColorImage],
     Returns:
         Imagen con el rectangulo en el centro
     """
-    img_w = img.shape[0]
-    img_h = img.shape[1]
+    h, w = img.shape[:2]
     r_side = 40
     output = img.copy()
     rect = img.copy()
-    cv2.rectangle(rect, ((img_w - r_side) / 2, (img_h - r_side) / 2),
-                  ((img_w + r_side) / 2, (img_h + r_side) / 2), color, -1)
+    rect = np.uint8(rect)
+    xInit = int((w - r_side)/2)
+    yInit = int((h - r_side)/2)
+    xEnd = int((w + r_side)/2)
+    yEnd = int((h + r_side)/2)
+    cv2.rectangle(rect, (xInit, yInit), (xEnd, yEnd), color, 5)
     cv2.addWeighted(rect, 0.5, img, 0.5, 0, output)
     return output
 
@@ -69,45 +74,44 @@ def _mean(xs: List[float]) -> float:
 
 
 @static_vars(time_to_start=10.0,
-             lower_dist_th=1.3,
+             lower_dist_th=1.0,
              higher_dist_th=1.75,
-             it_to_start_cal=15,
+             it_to_start_cal=5,
              it_to_start_arm=5,
              time_begining=time.time(),
              curr_state=0,
              it_counter=0,
              arms_xs=[[], []],
              robot_mlen=1.5)
-def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
+def Calibracion(img: ColorImage, d_img: DepthFrame, pose: Pose) -> int:
     time_now: float = time.time()
     if Calibracion.curr_state == 0:
-        _pon_rectangulo_centro(img, (0, 0, 255))
-        print("Estado 1")
-        print("Condicion 1: {}".format(time_now - Calibracion.time_begining))
-        if time_now - Calibracion.time_begining < Calibracion.time_to_start:
-            print("Saiendo de Estado 1")
+        output = _pon_rectangulo_centro(img, (0, 0, 255))
+        print("State 1")
+        cv2.imshow("out", output)
+        if (time_now - Calibracion.time_begining) >= Calibracion.time_to_start:
             Calibracion.curr_state += 1
     elif Calibracion.curr_state == 1:
-        print("Estado 2")
+        print("State 2")
         c_dist: float = _get_distance_to_center(
             d_img, img.shape[0], img.shape[1])
-        print("Distancia a centro {}".format(c_dist))
         if (c_dist > Calibracion.lower_dist_th and c_dist <
                 Calibracion.higher_dist_th):
-            _pon_rectangulo_centro(img, (0, 255, 0))
+            print("T pose")
+            output = _pon_rectangulo_centro(img, (0, 255, 0))
+            cv2.imshow("out", output)
             Calibracion.it_counter += 1
-            print("Guay")
         else:
-            print("No Guay")
-            _pon_rectangulo_centro(img, (0, 0, 255))
+            output = _pon_rectangulo_centro(img, (0, 0, 255))
+            cv2.imshow("out", output)
             Calibracion.it_counter = 0
         if Calibracion.it_counter >= Calibracion.it_to_start_cal:
-            print("Saliendo de Estado 2")
             Calibracion.curr_state += 1
             Calibracion.it_counter = 0
     elif Calibracion.curr_state == 2:
-        l_arm_d = ch.distLeftArm()
-        r_arm_d = ch.distRightArm()
+        print("State 3")
+        l_arm_d = pose.distLeftArm()
+        r_arm_d = pose.distRightArm()
         Calibracion.arms_xs[0].append(l_arm_d)
         Calibracion.arms_xs[1].append(r_arm_d)
         Calibracion.it_counter += 1
@@ -115,6 +119,7 @@ def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
         if Calibracion.it_counter >= Calibracion.it_to_start_arm:
             Calibracion.curr_state += 1
     elif Calibracion.curr_state == 3:
+        print("State 4")
         Calibracion.arm_mean = [
             _mean(
                 Calibracion.arms_xs[0]), _mean(
@@ -127,5 +132,6 @@ def Calibracion(img: ColorImage, d_img: DepthFrame) -> int:
             Calibracion.robot_mlen[0] / Calibracion.arm_mean[0]
         Calibracion.curr_state = 5
     elif Calibracion.curr_state == 5:
+        print("Calibration done")
         return 1
     return 0

@@ -550,11 +550,16 @@ if __name__ == '__main__':
             pose, hand = setReferenceFrame(datum)
              
             output = datum.cvOutputData
+             
+            # Stack both images horizontally
+            images = np.hstack((output, depth_colormap))
+            # Show images
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
             try:
-                if calib.Calibracion(color_image, depth_frame) == 0:
-                    print("1")
+                if calib.Calibracion(color_image, depth_frame, pose) == 0:
                     continue
-                print("2")
+                print("XYZ vector: {}".format(calib.Calibracion.Img2Robot([0.2, 4, 2])))
 
 
                 mask = removeBackground(depth_frame, pose, img)
@@ -579,11 +584,6 @@ if __name__ == '__main__':
                 pass
 
              
-            # Stack both images horizontally
-            images = np.hstack((output, depth_colormap))
-            # Show images
-            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('RealSense', images)
              
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
