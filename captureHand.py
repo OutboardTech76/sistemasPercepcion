@@ -22,6 +22,7 @@ Image = NDArray[(Any, Any), int]
 ColorImage = NDArray[(Any, Any, 3), int]
 DepthFrame = rs.depth_frame
 Contour = List[Any]
+Point2D = NDArray[(Any, 1), int]
 
 class Point:
     """
@@ -327,7 +328,7 @@ def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
 
     return auxImg
  
-def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Union[Image, Contour]:
+def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Tuple[Image, Contour]:
     """
     Function to segmentate hand from a given image.
      
@@ -392,7 +393,45 @@ def calcMoments(contours: Contour) ->  float:
         
     return totalArea
  
-def extractArms(img: Image) -> Image:
+ 
+def calcMassCenter(contours: Contour) ->  Point2D: 
+    """
+    Calculate mass center of given contours.
+
+    Args:
+        contours -> Contour image where calculate mass center
+
+    Returns:
+        Mass center position as a numpy array
+    """
+    
+    # Get the moments
+    mu = [None]*len(contours)
+    for i in range(len(contours)):
+        mu[i] = cv2.moments(contours[i])
+    # Get the mass centers
+    mc = [None]*len(contours)
+    for i in range(len(contours)):
+        # add 1e-5 to avoid division by zero
+        mc[i] = (mu[i]['m10'] / (mu[i]['m00'] + 1e-5), mu[i]['m01'] / (mu[i]['m00'] + 1e-5))
+    
+    massCenter = np.zeros((2), dtype='uint8')
+    count = 0
+    # Check area of every contour and calc mass center
+    for i in range(len(contours)):
+        area = cv2.contourArea(contours[i])
+        if area > 1500:
+            massCenter[0] += mc[i][0]
+            massCenter[1] += mc[i][1]
+            count += 1
+             
+    # Mean between mass center and contours number within area limits
+    if count > 0:
+        massCenter = massCenter/count
+    return massCenter
+        
+ 
+def extractArms(img: Image) -> Tuple[Image, Contour]:
     """
     Function to extract arms from a given mask. Mask must be binary image without barkground.
     Args:
@@ -400,10 +439,10 @@ def extractArms(img: Image) -> Image:
     Returns:
         Binary image wihout body and head, just arms.
     """
-    h, w = img.shape[:2]
+    hImg, wImg = img.shape[:2]
     kernel = np.ones((3,3), np.uint8)
-    armsImg = np.zeros((h, w), dtype='uint8')
-    bodyBox = np.zeros((h,w), dtype='uint8')
+    armsImg = np.zeros((hImg, wImg), dtype='uint8')
+    bodyBox = np.zeros((hImg, wImg), dtype='uint8')
      
     # Open image to reduce noise. After dilate to extract sure background 
     openImg = cv2.morphologyEx(img,cv2.MORPH_OPEN,kernel, iterations = 2)
@@ -417,22 +456,22 @@ def extractArms(img: Image) -> Image:
     contours, _ = cv2.findContours(dilatedFg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contours) != 0:
-        # Extract max countour and draw a box 
+        # Extract max countour and draw a box from body center to image size to remove everything except right arm
         c = max(contours, key = cv2.contourArea)
         x,y,w,h = cv2.boundingRect(c)
-        cv2.rectangle(bodyBox,(x,y),(x+w,y+h),255, -1)
+        cv2.rectangle(bodyBox,(x,y),(wImg,hImg),255, -1)
          
-    # Remove bodyBox from openImg to get only head and arms. Calc its contours
+    # Remove bodyBox from openImg to get only right arm. Calc its contours
     imgWoutBody = cv2.subtract(openImg, bodyBox)
     contours, _ = cv2.findContours(imgWoutBody, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
      
-    # Check area of every contour and draw the bigger ones (arms)
+    # Check area of every contour and draw the biggest one (arm)
     for i in range(len(contours)):
         area = cv2.contourArea(contours[i])
-        if area > 2000:
+        if area > 1500:
             cv2.drawContours(armsImg, contours, i, 255, -1)
 
-    return armsImg
+    return armsImg, contours
 
 
 def extractContour(img: Image, colorImg: ColorImage) -> Image:
@@ -556,32 +595,28 @@ if __name__ == '__main__':
             # Show images
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('RealSense', images)
-            # if calib.calibration.curr_state != 5:
-                # calib.calibration(color_image, depth_frame, pose)
-            # if calib.calibration(color_image, depth_frame, pose) != 1:
-                # pass
-                # continue
-            # print("exit")
             try:
-                if calib.calibration.calib_done is False:
-                    calib.calibration(color_image, depth_frame, pose)
-                if calib.calibration.calib_done is True:
-                    distCenter = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
-                    distWrist = depth_frame.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
-                    dist = distCenter - distWrist
-                    if len(pose.rightWrist.npPoint) == 2:
-                        pose.rightWrist.npPoint = np.append(pose.rightWrist.npPoint, dist)
-                    else:
-                        pose.rightWrist.npPoint[2] = dist
-                    print("XYZ image: {}".format(pose.rightWrist.npPoint))
-                    print("XYZ cartes: {}".format(calib.img2robot(pose.rightWrist.npPoint)))
+                # if calib.calibration.calib_done is False:
+                    # calib.calibration(color_image, depth_frame, pose)
+                # if calib.calibration.calib_done is True:
+                    # distCenter = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
+                    # distWrist = depth_frame.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
+                    # dist = distCenter - distWrist
+                    # if len(pose.rightWrist.npPoint) == 2:
+                        # pose.rightWrist.npPoint = np.append(pose.rightWrist.npPoint, dist)
+                    # else:
+                        # pose.rightWrist.npPoint[2] = dist
+                    # print("XYZ image: {}".format(pose.rightWrist.npPoint))
+                    # print("XYZ cartes: {}".format(calib.img2robot(pose.rightWrist.npPoint)))
 
 
                 mask = removeBackground(depth_frame, pose, img)
                 imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
                 handSegmented, handContour = extractHand(imgWoutBg, pose, hand)
-                armsSegmented = extractArms(mask)
+                armsSegmented, armContour = extractArms(mask)
 
+                massCenter = calcMassCenter(armContour)
+                print("Mass center: {}".format(massCenter))
                 # if calcMoments(handContour) > 2000:
                     # ros.gripper(True)
                 # else:
@@ -589,7 +624,7 @@ if __name__ == '__main__':
                  
                 # cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
-                # cv2.imshow("arms", armsSegmented)
+                cv2.imshow("arms", armsSegmented)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
 
