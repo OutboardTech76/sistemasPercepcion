@@ -1,0 +1,7 @@
+\section{Planteamiento inicial}
+El planteamiento inicial del proyecto fue el siguiente:\\
+Primero se instalaría el modelo de un robot humanoide comercial en el entorno de Gazebo.
+Luego se haría uso de Openpose para la detección de movimiento de los brazos del operador del robot.\\
+Los movimientos que realizase el usuario serían imitados por el robot, se planteó la posibilidad de enviarle al robot las coordenadas cartesianas tanto de la posición del hombro del usuario, como del codo y la muñeca. Con el fin de que el robot imitase con total exactitud los movimientos del brazo y no solo la posición del efector final (en este caso tomamos como referencia la muñeca).\\
+Openpose se ejecutaría fuera de la máquina virtual, donde se encontraría el robot ejecutándose en el entorno virtual de Gazebo, por lo tanto, se realizaría una comunicación vía TCP/IP para enviar las coordenadas cartesianas extraídas usando Openpose a Gazebo.\\
+Una vez la información fuera recibida por el nodo de Gazebo correspondiente, este enviaría las instrucciones de movimiento adecuadas al robot usando cinemática inversa.\\
