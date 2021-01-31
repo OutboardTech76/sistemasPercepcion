@@ -354,7 +354,7 @@ def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Tuple[Image, Contour
     maskedImg = cv2.bitwise_and(r, r, mask=maskCircle)
      
     auxImg = cv2.GaussianBlur(maskedImg, (3,3),cv2.BORDER_DEFAULT)
-    _, thresh = cv2.threshold(auxImg, 160, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(auxImg, 180, 255, cv2.THRESH_BINARY)
     openImg = cv2.morphologyEx(thresh,cv2.MORPH_OPEN,kernel, iterations = 2)
      
     contours, _ = cv2.findContours(openImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -363,6 +363,7 @@ def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Tuple[Image, Contour
     
     for i in range(len(contours)):
         cv2.drawContours(contourImg, contours, i, 255, -1)
+    
 
     return contourImg, contours
 
@@ -459,8 +460,9 @@ def extractArms(img: Image) -> Tuple[Image, Contour]:
         # Extract max countour and draw a box from body center to image size to remove everything except right arm
         c = max(contours, key = cv2.contourArea)
         x,y,w,h = cv2.boundingRect(c)
-        cv2.rectangle(bodyBox,(x,y),(wImg,hImg),255, -1)
+        cv2.rectangle(bodyBox,(x,y),(0,hImg),255, -1)
          
+    bodyBox = cv2.bitwise_not(bodyBox)
     # Remove bodyBox from openImg to get only right arm. Calc its contours
     imgWoutBody = cv2.subtract(openImg, bodyBox)
     contours, _ = cv2.findContours(imgWoutBody, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -561,7 +563,7 @@ if __name__ == '__main__':
     colorize.set_option(rs.option.color_scheme, 2)
 
     # Init ros node
-    # ros.rospy.init_node('VisualControl')
+    ros.rospy.init_node('VisualControl')
 
     try:
         while True:
@@ -596,35 +598,56 @@ if __name__ == '__main__':
             cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('RealSense', images)
             try:
-                # if calib.calibration.calib_done is False:
-                    # calib.calibration(color_image, depth_frame, pose)
-                # if calib.calibration.calib_done is True:
-                    # distCenter = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
-                    # distWrist = depth_frame.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
-                    # dist = distCenter - distWrist
-                    # if len(pose.rightWrist.npPoint) == 2:
-                        # pose.rightWrist.npPoint = np.append(pose.rightWrist.npPoint, dist)
-                    # else:
-                        # pose.rightWrist.npPoint[2] = dist
-                    # print("XYZ image: {}".format(pose.rightWrist.npPoint))
-                    # print("XYZ cartes: {}".format(calib.img2robot(pose.rightWrist.npPoint)))
+                if calib.calibration.calib_done is False:
+                    calib.calibration(color_image, depth_frame, pose)
+                     
+                if calib.calibration.calib_done is True:
+                     
+                    mask = removeBackground(depth_frame, pose, img)
+                    imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
+                    handSegmented, handContour = extractHand(imgWoutBg, pose, hand)
+                    armsSegmented, armContour = extractArms(mask)
+
+                    massCenter = calcMassCenter(armContour)
+                    x, y = massCenter[:2]
+                    print("Center: {}".format(massCenter))
+                    # if (x > 140 and x < 190) and (y > 140 and y < 230):
+                        # Arm right
+                    if (x > 190) and (y < 140):
+                        # Arm down
+                        ros.movement(1)
+                        print("Forward")
+                    elif (x > 190) and (y > 180):
+                        # Armd up
+                        ros.movement(2)
+                        print("Turn right")
+                    else:
+                        ros.movement(0)
+                        print("Stop")
+                    
+                    if calcMoments(handContour) > 1000:
+                        ros.gripper(True)
+                        print("Open gripper")
+                    else:
+                        ros.gripper(False)
+                        print("Close gripper")
+                     
+                    distCenter = depth_frame.get_distance(int(pose.center.x), int(pose.center.y))
+                    distWrist = depth_frame.get_distance(int(pose.leftWrist.x), int(pose.leftWrist.y))
+                    dist = distCenter - distWrist
+                    if len(pose.leftWrist.npPoint) == 2:
+                        pose.leftWrist.npPoint = np.append(pose.leftWrist.npPoint, dist)
+                    else:
+                        pose.leftWrist.npPoint[2] = dist
+                    print("XYZ image: {}".format(pose.leftWrist.npPoint))
+                    print("XYZ cartes: {}".format(calib.img2robot(pose.leftWrist.npPoint)))
+                    ros.position(pose.leftWrist.npPoint[0],pose.leftWrist.npPoint[1],pose.leftWrist.npPoint[2])
 
 
-                mask = removeBackground(depth_frame, pose, img)
-                imgWoutBg = cv2.bitwise_and(color_image, color_image, mask=mask)
-                handSegmented, handContour = extractHand(imgWoutBg, pose, hand)
-                armsSegmented, armContour = extractArms(mask)
-
-                massCenter = calcMassCenter(armContour)
-                print("Mass center: {}".format(massCenter))
-                # if calcMoments(handContour) > 2000:
-                    # ros.gripper(True)
-                # else:
-                    # ros.gripper(False)
                  
-                # cv2.imshow("mask", handSegmented)
+                    cv2.imshow("mask", handSegmented)
                 # cv2.imshow("img", imgWoutBg)
-                cv2.imshow("arms", armsSegmented)
+                    cv2.imshow("arms", armsSegmented)
                 # kMeans(imgWoutBg)
                 # moments(imgWoutBg)
 
