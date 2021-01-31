@@ -99,7 +99,7 @@ def _mean(xs: List[float]) -> float:
 
 @static_vars(time_to_start=10.0,
              lower_dist_th=1.0,
-             higher_dist_th=1.75,
+             higher_dist_th=2.00,
              it_to_start_cal=5,
              it_to_start_arm=5,
              time_begining=time.time(),
