@@ -1,10 +1,6 @@
 import cv2
 import pyrealsense2 as rs
 import numpy as np
-import argparse
-import json
-import sys
-import os
 import random 
 import ros
 from typing import Tuple, Any, Dict, List, Union
@@ -261,8 +257,6 @@ def setReferenceFrame(data: op.Datum) -> Union[Pose, Hand]:
         if peopleNum > 0:
             pose = Pose(data.poseKeypoints[0])
             hand = Hand(data.handKeypoints)
-             
-            # poseChanged, handChanged = convertToRefFrame(hand, pose, depth_frame)
             return pose, hand
     
 def setParams() -> List[str]:
@@ -271,7 +265,6 @@ def setParams() -> List[str]:
     Returns:
         Params.
     """
-    # args = parser.parse_args()
     params = dict()
     params["model_folder"] = "/home/paco/openpose/models"
     params["model_pose"] = "BODY_25"
@@ -279,7 +272,6 @@ def setParams() -> List[str]:
     params["face"] = False
     # Reduce net resolution in order to avoid memory problems
     params["net_resolution"] = "-1x128"
-    # params["write_json"] = args.jsonPath 
     return params
 
 def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
@@ -296,14 +288,9 @@ def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
 
     """
     centerDist = depth.get_distance(int(pose.center.x), int(pose.center.y))
-    armDist = depth.get_distance(int(pose.rightWrist.x), int(pose.rightWrist.y))
      
     maxValueDist = centerDist + 0.3
-    # maxValueDist2 = centerDist + (abs(centerDist - armDist))
-    # maxValueDist = max(maxValueDist1, maxValueDist2)
     minValueDist = centerDist - 0.2
-
-    kernel = np.ones((3,3), np.uint8)
      
     h, w = img.shape[:2]
     imgData = np.asarray(img, dtype='uint8')
@@ -323,8 +310,6 @@ def removeBackground(depth: DepthFrame, pose: Pose, img: Image) -> Image:
     # Apply threshold using Otsu algorith
     _, auxImg = cv2.threshold(auxImg,0,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     
-    # auxImg = cv2.erode(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
-    # auxImg = cv2.dilate(auxImg, cv2.getStructuringElement(cv2.MORPH_RECT,(4,4)))
 
     return auxImg
  
@@ -343,7 +328,6 @@ def extractHand(img: ColorImage, pose: Pose, hand: Hand) -> Tuple[Image, Contour
     h, w = img.shape[:2]
     b, g, r = cv2.split(img)
     kernel = np.ones((3,3), np.uint8)
-    imgColor = img.copy()
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY, dstCn = cv2.CV_8UC1)
     centerRHand = hand.centerRight()
     dist = hand.maxDistanceRight(pose)
