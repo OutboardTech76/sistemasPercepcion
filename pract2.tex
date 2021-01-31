@@ -7,7 +7,7 @@
 \usepackage[center]{caption}
 \usepackage{xcolor}
 
-\title{\huge Sistemas de Percepción\\ \LARGE Estado proyecto.}
+\title{\huge Sistemas de Percepción\\ \LARGE Proyecto 5. Control de robot móvil con brazo robótico (simulado) mediante visión.}
 \author{Alfredo Fenoll Quirant \\Francisco Morillas Espejo \\ Raúl Candela Arias}
 \date{}
  
@@ -17,18 +17,12 @@
  
 \begin{document}
 
-Se ha comenzado el proyecto por la parte de simulación de un robot humanoide (Pepper o TiaGo) mediante Gazebo.
-\newline
+\include{texSources/desarrollo_proyecto}
 
-A lo largo de esta parte se han encontrado diversos errores debido a la versión de Gazebo, funcionando unas partes de los robots bien en una u otra versión pero sin conseguir que funcionen al completo.
-Por tanto una de los principales problemas que se está tratando de solventar es la simulación de dichos robots.
-\newline
-
-Otra de las opciones que se ha barajado es el uso de un robot simple, mediante eslabones cilíndricos, para reducir la complejidad del problema.
-\newline
-
-Tras esto se plantea el uso de OpenPose para la detección del movimiento de los brazos.
-Cada movimiento será posterioremente enviado al robot simulado el cual realizará la acción correspondiente (moverse, mover brazo, abrir/cerrar efector final).
-Con todo esto realizado el siguiente paso es dejar OpenPose y realizar la detección de movimientos mediante las técnicas de visión vistas en la asignatura.
+\include{texSources/openpose}
+\include{texSources/vision}
+\include{texSources/unionRos}
+\include{texSources/gazebo}
+\include{texSources/conclusion}
  
 \end{document}

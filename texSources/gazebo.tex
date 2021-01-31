@@ -1,18 +1,20 @@
 \section{Gazebo}
-La parte correspondiente al control del robot en el entorno de Gazebo consiste en dos partes, por un lado se leen los diferentes ‘topics’ que envía todo el sistema de visión y por otro se interactúa con el robot en función a estos valores.\\
-\textbf{Abrir/cerrar pinza}
-Según el valor obtenido por el topic relacionado a esta acción (ref secc unirRos) se manda una señal al topic del robot '/parallel_gripper_controller/command'  publicando dos valores diferentes según si se ha de abrir o cerrar.\\
-\textbf{Mover base}
-En función del valor entero recibido del topic correspondiente se codifica según se menciona en el apartado (ref sec unirRos) y se publica en el topic del robot '/mobile_base_controller/cmd_vel' uno de los siguientes valores:\\
-\begin{enumerate}
+La parte correspondiente al control del robot en el entorno de Gazebo consiste en dos partes, por un lado se leen los diferentes \textit{topics} que envía todo el sistema de visión y por otro se interactúa con el robot en función a estos valores.
+
+\subsection{Abrir/cerrar pinza}
+Según el valor obtenido por el \textit{topic} relacionado a esta acción (sección \ref{sec:unionRos}) se manda una señal al \textit{topic} del robot \textit{/parallel\_gripper\_controller/command}  publicando dos valores diferentes según si se ha de abrir o cerrar.
+
+\subsection{Mover base}
+En función del valor entero recibido del topic correspondiente se codifica según se menciona en el apartado (sección \ref{sec:unionRos}) y se publica en el \textit{topic} del robot \textit{/mobile\_base\_controller/cmd\_vel} uno de los siguientes valores:
+\begin{itemize}
   \item Velocidades angulares y lineales = 0
   \item Velocidad angular = 0 y lineal = 1
   \item Velocidad angular = 1 y lineal = 0
 \end{enumerate}
-\textbf{Mover brazo}
+\subsection{Mover brazo}
 En este caso se parte del ejemplo de MoveIt que define el movimiento cartesiano de un robot pasándole como argumentos los valores (x, y, z) y (roll, pitch, yaw) pero realizando ciertas modificaciones.\\
 
-En lugar de leer los valores de (x, y, z) como argumentos los extrae de los topics /cartPosition/x, /cartPosition/y, /cartPosition/z respectivamente, en cuanto a los valores de roll, pitch y yaw se le da valores por defectos tales como 1.57, 0 y 0 respectivamente.\\
+En lugar de leer los valores de (x, y, z) como argumentos los extrae de los topics \textit{/cartPosition/x}, \textit{/cartPosition/y} y /cartPosition/z respectivamente, en cuanto a los valores de roll, pitch y yaw se le da valores por defectos tales como 1.57, 0 y 0 respectivamente.\\
 
 Con estos valores de posición y orientación se crea un planificador de trayectorias cartesianas haciendo uso de un solver de cinemática inversa. Dicho solvert planea la trayectoria desde su posición actual a la posición destino dada y, pasado un pequeño intervalo de tiempo y en caso de que no encuentre ninguna singularidad a lo largo de la trayectoria, realiza el movimiento solicitado.\\
 
