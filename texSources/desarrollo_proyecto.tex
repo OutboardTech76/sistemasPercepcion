@@ -4,14 +4,14 @@ Se comenzó el proyecto buscando el robot adecuado para usar en el simulador Gaz
 Esta primera parte dió más problemas de los que se preveía. 
 Inicialmente, se escogió el robot Pepper, pero este robot dió dos problemas importantes:
 \begin{itemize}
-Por un lado, cuando se iniciaba la simulación con las físicas activadas, el robot comenzaba a rotar sobre sí mismo, hasta que terminaba cayendo al suelo como se muestra en las siguientes imágenes, una de ellas al comienzo de la rotación, y la segunda con el robot ya en el suelo. Esto se consiguió arreglar actualizando la versión de gazebo, desde la versión 7.0 a la 8.0
+  \item Por un lado, cuando se iniciaba la simulación con las físicas activadas, el robot comenzaba a rotar sobre sí mismo, hasta que terminaba cayendo al suelo como se muestra en las siguientes imágenes, una de ellas al comienzo de la rotación, y la segunda con el robot ya en el suelo. Esto se consiguió arreglar actualizando la versión de gazebo, desde la versión 7.0 a la 8.0
 \begin{figure}
   \includegraphics{texImages/peppergiro.png}
 \end{figure}
 \begin{figure}
   \includegraphics{texImages/peppersuelo.png}
 \end{figure}
-El segundo problema apareció con respecto a la mano izquierda del robot, una vez comenzaba la simulación las falanges de los dedos se comportaban defectuosamente, de tal modo que se acaban introduciendo dentro de la propia mano, esto se intentó arreglar modificando las inercias en el código URDF, pero no se consiguió alcanzar un comportamiento realista.\\
+\item El segundo problema apareció con respecto a la mano izquierda del robot, una vez comenzaba la simulación las falanges de los dedos se comportaban defectuosamente, de tal modo que se acaban introduciendo dentro de la propia mano, esto se intentó arreglar modificando las inercias en el código URDF, pero no se consiguió alcanzar un comportamiento realista.\\
 \end{itemize}
 También se intentó cambiar esa mano por otra clase de efector final diferente que también nos pudiera servir para la tarea a realizar. Pero tampoco dió resultado, por lo que se optó por elegir otro modelo de robot diferente.\\
 \begin{figure}
