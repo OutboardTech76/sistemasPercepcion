@@ -10,6 +10,11 @@ Add Hand class. Only middle finger is necesary to use end effector. Maybe we cou
 Use thumb position (with image, not OpenPose) to extract orientation, in case that the previous option does not work. Use thumb up, down, front or rear.
 Reduce image size in order to increase speed.
 Add exceptions when no person or body part is detected to avoid segmantation fault.
+## Move robot's base
+Calculate mass center of arms and create three states:
+1) Arm extended -> mass center in the center
+2) Arm +90º -> mass center in upper position 
+3) Arm -90º -> mass center in lower position
 
 
 ## captureHand.py
