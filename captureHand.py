@@ -544,9 +544,6 @@ if __name__ == '__main__':
 
                     massCenter = calcMassCenter(armContour)
                     x, y = massCenter[:2]
-                    print("Center: {}".format(massCenter))
-                    # if (x > 140 and x < 190) and (y > 140 and y < 230):
-                        # Arm straight
                     if (x > 190) and (y < 140):
                         # Arm down
                         ros.movement(1)
@@ -556,6 +553,7 @@ if __name__ == '__main__':
                         ros.movement(2)
                         print("Turn right")
                     else:
+                        # Arm straight
                         ros.movement(0)
                         print("Stop")
                     
