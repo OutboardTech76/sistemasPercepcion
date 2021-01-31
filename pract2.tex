@@ -1,0 +1,34 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{hyperref}
+\usepackage[center]{caption}
+\usepackage{xcolor}
+
+\title{\huge Sistemas de Percepción\\ \LARGE Estado proyecto.}
+\author{Alfredo Fenoll Quirant \\Francisco Morillas Espejo \\ Raúl Candela Arias}
+\date{}
+ 
+\begin{titlepage}
+\maketitle
+\end{titlepage}
+ 
+\begin{document}
+
+Se ha comenzado el proyecto por la parte de simulación de un robot humanoide (Pepper o TiaGo) mediante Gazebo.
+\newline
+
+A lo largo de esta parte se han encontrado diversos errores debido a la versión de Gazebo, funcionando unas partes de los robots bien en una u otra versión pero sin conseguir que funcionen al completo.
+Por tanto una de los principales problemas que se está tratando de solventar es la simulación de dichos robots.
+\newline
+
+Otra de las opciones que se ha barajado es el uso de un robot simple, mediante eslabones cilíndricos, para reducir la complejidad del problema.
+\newline
+
+Tras esto se plantea el uso de OpenPose para la detección del movimiento de los brazos.
+Cada movimiento será posterioremente enviado al robot simulado el cual realizará la acción correspondiente (moverse, mover brazo, abrir/cerrar efector final).
+Con todo esto realizado el siguiente paso es dejar OpenPose y realizar la detección de movimientos mediante las técnicas de visión vistas en la asignatura.
+ 
+\end{document}
