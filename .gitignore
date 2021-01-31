@@ -3,3 +3,6 @@ jsonFiles/*
 openpose_python.py
 test.py
 __pycache__
+texSources/
+images/
+pract2.*
