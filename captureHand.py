@@ -447,7 +447,7 @@ def extractArms(img: Image) -> Tuple[Image, Contour]:
      
     # Open image to reduce noise. After dilate to extract sure background 
     openImg = cv2.morphologyEx(img,cv2.MORPH_OPEN,kernel, iterations = 2)
-    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
+    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 4/10 max value
     distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
     _, sureFg = cv2.threshold(distTransform, 0.40*distTransform.max(), 255, 0)
     sureFg = np.uint8(sureFg)
@@ -474,72 +474,6 @@ def extractArms(img: Image) -> Tuple[Image, Contour]:
             cv2.drawContours(armsImg, contours, i, 255, -1)
 
     return armsImg, contours
-
-
-def extractContour(img: Image, colorImg: ColorImage) -> Image:
-    """
-    Extract image contour using watershed algorithm.
-    Args:
-        img -> Binary image.
-        colorImg -> Color image where calculate contour.
-    Returns:
-        Image with contour.
-    """
-    kernel = np.ones((3,3), np.uint8)
-    auxImg = img.copy()
-    
-    # Open image to reduce noise. After dilate to extract sure background 
-    openImg = cv2.morphologyEx(auxImg,cv2.MORPH_OPEN,kernel, iterations = 2)
-    sureBg = cv2.dilate(openImg,kernel,iterations=3)
-    # Finding sure foreground area using euclidean distance with (3,3) mask and threshold with 1/10 max value
-    distTransform = cv2.distanceTransform(openImg, cv2.DIST_L2, 3)
-    _, sureFg = cv2.threshold(distTransform, 0.10*distTransform.max(), 255, 0)
-     
-    # Finding unknown region. Difference between sureBg and sureFg
-    sureFg = np.uint8(sureFg)
-    unknownRegion = cv2.subtract(sureBg, sureFg)
-     
-    # Marker labelling
-    _, markers = cv2.connectedComponents(sureFg)
-    # Add one to all labels so that sure background is not 0, but 1
-    markers = markers+1
-    # Now, mark the region of unknown with zero
-    markers[unknownRegion==255] = 0
-     
-    # Apply watershed algorithm to extract siluette in image
-    markers = cv2.watershed(colorImg, markers) 
-    # Uncomment to mark siluette in colorImg
-    # colorImg[markers == -1] = [255,0,0]
-    
-    markImg = np.zeros(auxImg.shape, dtype='uint8')
-    markImg[markers == -1] = 255
-     
-    # contours, _ = cv2.findContours(markImg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # drawImg = np.zeros((auxImg.shape),dtype='uint8')
-    # # for i in range(len(contours)):
-    # cv2.drawContours(drawImg, contours, -1, 255, -1)
-    # cv2.imshow("1", drawImg)
-    # cv2.imshow("2", a)
-    return markImg
- 
-def kMeans(img):
-    auxImg = np.copy(img)
-    pixelValues = auxImg.reshape((-1, 3))
-    pixelValues = np.float32(pixelValues)
-
-    stop = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    nAttemps = 10
-    centroid = cv2.KMEANS_RANDOM_CENTERS
-    clusters = 3
-
-    _, labels, centers = cv2.kmeans(pixelValues, clusters, None, stop, nAttemps, centroid)
-    centers = np.uint8(centers)
-    segmentedData = centers[labels.flatten()]
-
-    segmentedImg = segmentedData.reshape(auxImg.shape)
-    cv2.imshow("K", segmentedImg)
-     
-
 
 
 if __name__ == '__main__':
@@ -612,7 +546,7 @@ if __name__ == '__main__':
                     x, y = massCenter[:2]
                     print("Center: {}".format(massCenter))
                     # if (x > 140 and x < 190) and (y > 140 and y < 230):
-                        # Arm right
+                        # Arm straight
                     if (x > 190) and (y < 140):
                         # Arm down
                         ros.movement(1)
@@ -639,23 +573,10 @@ if __name__ == '__main__':
                         pose.leftWrist.npPoint = np.append(pose.leftWrist.npPoint, dist)
                     else:
                         pose.leftWrist.npPoint[2] = dist
-                    print("XYZ image: {}".format(pose.leftWrist.npPoint))
-                    print("XYZ cartes: {}".format(calib.img2robot(pose.leftWrist.npPoint)))
                     ros.position(pose.leftWrist.npPoint[0],pose.leftWrist.npPoint[1],pose.leftWrist.npPoint[2])
-
-
                  
-                    cv2.imshow("mask", handSegmented)
-                # cv2.imshow("img", imgWoutBg)
-                    cv2.imshow("arms", armsSegmented)
-                # kMeans(imgWoutBg)
-                # moments(imgWoutBg)
-
-
-
             except:
                 pass
-
              
              
             if cv2.waitKey(1) & 0xFF == ord('q'):
